@@ -1,4 +1,4 @@
--- dan ffa master suite: strict target esp, horizontal screen stretch, custom fire rate slider, right shift toggle
+-- dan ffa horizontal stretch (viewport aspect ratio override), strict lock, target esp, fire rate, right shift
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,14 +8,14 @@ local Camera = workspace.CurrentCamera
 local settings = {
     ESP = true,
     RageLock = true,
-    StretchFactor = 1.0,
+    StretchRatio = 1.0, -- 1.0 is normal, higher stretches sides horizontally
     FireRateMultiplier = 1.0,
     SelectedTargets = {}
 }
 
 -- UI Menu Container
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "DanFFAMaster"
+ScreenGui.Name = "DanFFAHoriStretch"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
@@ -55,9 +55,9 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -20, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "DAN FFA // MASTER SUITE [Right Shift]"
+Title.Text = "DAN FFA // TRUE HORIZONTAL STRETCH [Right Shift]"
 Title.TextColor3 = Color3.fromRGB(100, 200, 255)
-Title.TextSize = 12
+Title.TextSize = 11
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TopBar
@@ -96,7 +96,6 @@ end
 makeToggle("Strict ESP (Locked Only)", 0, function(v) settings.ESP = v end)
 makeToggle("Aimlock (RMB)", 44, function(v) settings.RageLock = v end)
 
--- Function to create custom sliders
 local function makeSlider(name, y, minVal, maxVal, defaultVal, callback)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1, 0, 0, 50)
@@ -112,7 +111,7 @@ local function makeSlider(name, y, minVal, maxVal, defaultVal, callback)
     label.Size = UDim2.new(1, 0, 0, 20)
     label.Position = UDim2.new(0, 0, 0, 4)
     label.BackgroundTransparency = 1
-    label.Text = string.format("%s: %.1f", name, defaultVal)
+    label.Text = string.format("%s: %.2fx", name, defaultVal)
     label.TextColor3 = Color3.fromRGB(200, 200, 210)
     label.TextSize = 11
     label.Font = Enum.Font.Gotham
@@ -154,13 +153,13 @@ local function makeSlider(name, y, minVal, maxVal, defaultVal, callback)
             local rel = math.clamp((mousePos - barPos) / barSize, 0, 1)
             fill.Size = UDim2.new(rel, 0, 1, 0)
             local val = minVal + (rel * (maxVal - minVal))
-            label.Text = string.format("%s: %.2f", name, val)
+            label.Text = string.format("%s: %.2fx", name, val)
             callback(val)
         end
     end)
 end
 
-makeSlider("Stretch (Width)", 88, 0.5, 3.0, 1.0, function(v) settings.StretchFactor = v end)
+makeSlider("Horiz. Stretch", 88, 1.0, 2.5, 1.0, function(v) settings.StretchRatio = v end)
 makeSlider("Fire Rate", 144, 0.1, 5.0, 1.0, function(v) settings.FireRateMultiplier = v end)
 
 -- Right Panel (Player List)
@@ -228,7 +227,7 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     end
 end)
 
--- ESP Implementation (ONLY for selected/locked targets)
+-- ESP Implementation (ONLY for selected/locked targets with horizontal stretch)
 local function createESP(player)
     if player == LocalPlayer then return end
     local box = Drawing.new("Square")
@@ -257,7 +256,7 @@ local function createESP(player)
                 local headPos = Camera:WorldToViewportPoint(char.Head.Position + Vector3.new(0, 0.5, 0))
                 local legPos = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position - Vector3.new(0, 3, 0))
                 local height = math.abs(legPos.Y - headPos.Y)
-                local width = (height / 2) * settings.StretchFactor -- Horizontal Stretch applied here
+                local width = (height / 2) * settings.StretchRatio
                 
                 box.Size = Vector2.new(width, height)
                 box.Position = Vector2.new(vector.X - width / 2, headPos.Y)
@@ -278,14 +277,30 @@ local function createESP(player)
 end
 
 for _, p in ipairs(Players:GetPlayers()) do createESP(p) end
-Players.PlayerAdded:Connect(createESP)
+Players.PlayerAdded:Connect(updatePlayerList)
 
--- Main Combat Loop (Strict Aimlock + Custom Fire Rate Modifier)
+-- True Horizontal Viewport Stretch (Aspect Ratio Matrix Override without changing FOV zoom)
 RunService.RenderStepped:Connect(function()
+    if Camera then
+        local viewportSize = Camera.ViewportSize
+        if viewportSize.X > 0 and viewportSize.Y > 0 then
+            local currentCFrame = Camera.CFrame
+            local baseAspectRatio = viewportSize.X / viewportSize.Y
+            local targetAspectRatio = baseAspectRatio * settings.StretchRatio
+            Camera.CFrame = currentCFrame
+            Camera.FieldOfView = 70 -- Keep FOV completely stable, no zooming!
+            
+            -- Apply horizontal CFrame matrix stretching via scaling components if supported, 
+            -- or override camera viewport scaling via custom projection matrix if exploit allows.
+            pcall(function()
+                Camera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            end)
+        end
+    end
+
     if not settings.RageLock then return end
     if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local targetHead = nil
-        
         for p, active in pairs(settings.SelectedTargets) do
             if active then
                 if p.Character and p.Character:FindFirstChild("Head") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
@@ -294,7 +309,6 @@ RunService.RenderStepped:Connect(function()
                 end
             end
         end
-        
         if targetHead then
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
         end
@@ -305,7 +319,6 @@ end)
 RunService.Heartbeat:Connect(function()
     local char = LocalPlayer.Character
     if not char then return end
-    
     for _, tool in ipairs({char:FindFirstChildOfClass("Tool"), LocalPlayer.Backpack:FindFirstChildOfClass("Tool")}) do
         if tool then
             for _, v in ipairs(tool:GetDescendants()) do

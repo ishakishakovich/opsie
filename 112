@@ -1,0 +1,143 @@
+-- dan ffa full script with clean ui menu
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local settings = {
+    ESP = true,
+    Aimlock = true,
+    FastReload = true
+}
+
+-- UI Menu
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "DanFFAMenu"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 200, 0, 160)
+Frame.Position = UDim2.new(0.1, 0, 0.1, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+Frame.Parent = ScreenGui
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+Title.Text = "Dan FFA Menu"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 14
+Title.Font = Enum.Font.SourceSansBold
+Title.Parent = Frame
+
+local function createToggle(name, yPos, callback)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0.9, 0, 0, 30)
+    button.Position = UDim2.new(0.05, 0, 0, yPos)
+    button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Text = name .. ": ON"
+    button.TextSize = 12
+    button.Font = Enum.Font.SourceSans
+    button.Parent = Frame
+
+    button.MouseButton1Click:Connect(function()
+        local state = callback()
+        button.Text = name .. (state and ": ON" or ": OFF")
+        button.BackgroundColor3 = state and Color3.fromRGB(60, 60, 60) or Color3.fromRGB(100, 40, 40)
+    end)
+end
+
+createToggle("ESP", 40, function()
+    settings.ESP = not settings.ESP
+    return settings.ESP
+end)
+
+createToggle("Aimlock", 80, function()
+    settings.Aimlock = not settings.Aimlock
+    return settings.Aimlock
+end)
+
+createToggle("Fast Reload", 120, function()
+    settings.FastReload = not settings.FastReload
+    return settings.FastReload
+end)
+
+-- ESP
+local function createESP(player)
+    if player == LocalPlayer then return end
+    local box = Drawing.new("Square")
+    box.Visible = false
+    box.Color = Color3.fromRGB(255, 0, 0)
+    box.Thickness = 1
+    box.Filled = false
+
+    RunService.RenderStepped:Connect(function()
+        if not settings.ESP then
+            box.Visible = false
+            return
+        end
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+            local vector, onScreen = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
+            if onScreen then
+                box.Size = Vector2.new(2000 / vector.Z, 3000 / vector.Z)
+                box.Position = Vector2.new(vector.X - box.Size.X / 2, vector.Y - box.Size.Y / 2)
+                box.Visible = true
+            else
+                box.Visible = false
+            end
+        else
+            box.Visible = false
+        end
+    end)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    createESP(p)
+end
+Players.PlayerAdded:Connect(createESP)
+
+-- Aimlock
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not settings.Aimlock then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        local target, shortestDistance = nil, math.huge
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+                local pos, onScreen = Camera:WorldToViewportPoint(p.Character.Head.Position)
+                if onScreen then
+                    local dist = (Vector2.new(pos.X, pos.Y) - UserInputService:GetMouseLocation()).Magnitude
+                    if dist < shortestDistance then
+                        shortestDistance = dist
+                        target = p.Character.Head
+                    end
+                end
+            end
+        end
+        if target then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+        end
+    end
+end)
+
+-- Fast Reload
+RunService.Heartbeat:Connect(function()
+    if not settings.FastReload then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+    for _, tool in ipairs({char:FindFirstChildOfClass("Tool"), LocalPlayer.Backpack:FindFirstChildOfClass("Tool")}) do
+        if tool then
+            for _, v in ipairs(tool:GetDescendants()) do
+                if (v:IsA("NumberValue") or v:IsA("IntValue")) and (v.Name:lower():find("reload") or v.Name:lower():find("cooldown")) then
+                    v.Value = 0.05
+                end
+            end
+        end
+    end
+end)

@@ -1,4 +1,4 @@
--- dan ffa 1000x master suite: premium tabbed ui, glowing chams highlight, conditional rapid fire, strict target lock
+-- dan ffa elite suite: ultra premium ui, neon accents, sliders for rapid fire & chams, chams highlight, strict aimlock
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -9,71 +9,78 @@ local settings = {
     Chams = true,
     Aimlock = true,
     RapidFire = true,
-    FireMultiplier = 2.5,
+    RapidFireDelay = 0.05, -- Скорость рапид фаЕра
+    ChamsTransparency = 0.4,
     SelectedTargets = {}
 }
 
 -- Удаляем старый интерфейс если он уже есть
-if game:GetService("CoreGui"):FindFirstChild("DanFFAUltimate1000x") then
-    game:GetService("CoreGui").DanFFAUltimate1000x:Destroy()
+if game:GetService("CoreGui"):FindFirstChild("DanFFAEliteSuite") then
+    game:GetService("CoreGui").DanFFAEliteSuite:Destroy()
 end
 
 -- UI Container
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "DanFFAUltimate1000x"
+ScreenGui.Name = "DanFFAEliteSuite"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
--- Главное окно
+-- Главное окно (Премиальный темный стиль с тенью)
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 520, 0, 360)
-MainFrame.Position = UDim2.new(0.5, -260, 0.5, -180)
-MainFrame.BackgroundColor3 = Color3.fromRGB(13, 13, 18)
+MainFrame.Size = UDim2.new(0, 540, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -270, 0.5, -200)
+MainFrame.BackgroundColor3 = Color3.fromRGB(9, 9, 12)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.CornerRadius = UDim.new(0, 12)
 MainCorner.Parent = MainFrame
+
+-- Тень окна
+local Shadow = Instance.new("UIStroke")
+Shadow.Color = Color3.fromRGB(35, 35, 50)
+Shadow.Thickness = 2
+Shadow.Parent = MainFrame
 
 -- Шапка
 local TopBar = Instance.new("Frame")
-TopBar.Size = UDim2.new(1, 0, 0, 42)
-TopBar.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
+TopBar.Size = UDim2.new(1, 0, 0, 45)
+TopBar.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
 TopBar.BorderSizePixel = 0
 TopBar.Parent = MainFrame
 
 local TopCorner = Instance.new("UICorner")
-TopCorner.CornerRadius = UDim.new(0, 10)
+TopCorner.CornerRadius = UDim.new(0, 12)
 TopCorner.Parent = TopBar
 
 local TopFix = Instance.new("Frame")
 TopFix.Size = UDim2.new(1, 0, 0, 10)
 TopFix.Position = UDim2.new(0, 0, 1, -10)
-TopFix.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
+TopFix.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
 TopFix.BorderSizePixel = 0
 TopFix.Parent = TopBar
 
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -20, 1, 0)
-Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Position = UDim2.new(0, 16, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "DAN FFA // 1000X ELITE SUITE  [Right Shift]"
-Title.TextColor3 = Color3.fromRGB(80, 200, 255)
-Title.TextSize = 12
+Title.Text = "DAN FFA // ELITE SUITE  [Right Shift]"
+Title.TextColor3 = Color3.fromRGB(110, 180, 255)
+Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TopBar
 
--- Левая панель (Функции)
+-- Левая панель (Функции и Слайдеры)
 local LeftPanel = Instance.new("ScrollingFrame")
-LeftPanel.Size = UDim2.new(0, 210, 1, -56)
-LeftPanel.Position = UDim2.new(0, 15, 0, 50)
+LeftPanel.Size = UDim2.new(0, 225, 1, -60)
+LeftPanel.Position = UDim2.new(0, 15, 0, 52)
 LeftPanel.BackgroundTransparency = 1
 LeftPanel.BorderSizePixel = 0
-LeftPanel.CanvasSize = UDim2.new(0, 0, 0, 200)
+LeftPanel.CanvasSize = UDim2.new(0, 0, 0, 320)
 LeftPanel.ScrollBarThickness = 3
 LeftPanel.Parent = MainFrame
 
@@ -84,16 +91,16 @@ UIListLayoutLeft.Parent = LeftPanel
 
 local function makeToggle(name, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -4, 0, 36)
-    btn.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
+    btn.Size = UDim2.new(1, -4, 0, 38)
+    btn.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
     btn.Text = name .. ": ON"
-    btn.TextColor3 = Color3.fromRGB(220, 220, 230)
-    btn.TextSize = 11
+    btn.TextColor3 = Color3.fromRGB(220, 220, 235)
+    btn.TextSize = 12
     btn.Font = Enum.Font.GothamMedium
     btn.Parent = LeftPanel
     
     local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, 6)
+    c.CornerRadius = UDim.new(0, 8)
     c.Parent = btn
     
     local active = true
@@ -101,7 +108,7 @@ local function makeToggle(name, callback)
         active = not active
         callback(active)
         btn.Text = name .. (active and ": ON" or ": OFF")
-        btn.BackgroundColor3 = active and Color3.fromRGB(22, 22, 30) or Color3.fromRGB(45, 20, 25)
+        btn.BackgroundColor3 = active and Color3.fromRGB(18, 18, 24) or Color3.fromRGB(45, 20, 25)
     end)
 end
 
@@ -109,11 +116,77 @@ makeToggle("Target Highlight (Chams)", function(v) settings.Chams = v end)
 makeToggle("Aimlock (RMB)", function(v) settings.Aimlock = v end)
 makeToggle("Conditional Rapid Fire", function(v) settings.RapidFire = v end)
 
+-- Функция создания красивого слайдера
+local function makeSlider(name, minVal, maxVal, defaultVal, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -4, 0, 50)
+    container.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+    container.Parent = LeftPanel
+    
+    local sc = Instance.new("UICorner")
+    sc.CornerRadius = UDim.new(0, 8)
+    sc.Parent = container
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -16, 0, 20)
+    label.Position = UDim2.new(0, 8, 0, 6)
+    label.BackgroundTransparency = 1
+    label.Text = string.format("%s: %.2f", name, defaultVal)
+    label.TextColor3 = Color3.fromRGB(200, 200, 215)
+    label.TextSize = 11
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+    
+    local bar = Instance.new("Frame")
+    bar.Size = UDim2.new(1, -16, 0, 6)
+    bar.Position = UDim2.new(0, 8, 0, 32)
+    bar.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+    bar.BorderSizePixel = 0
+    bar.Parent = container
+    
+    local bc = Instance.new("UICorner")
+    bc.CornerRadius = UDim.new(0, 3)
+    bc.Parent = bar
+    
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new((defaultVal - minVal) / (maxVal - minVal), 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(80, 150, 255)
+    fill.BorderSizePixel = 0
+    fill.Parent = bar
+    
+    local fc = Instance.new("UICorner")
+    fc.CornerRadius = UDim.new(0, 3)
+    fc.Parent = fill
+    
+    local dragging = false
+    bar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mousePos = UserInputService:GetMouseLocation().X
+            local barPos = bar.AbsolutePosition.X
+            local barSize = bar.AbsoluteSize.X
+            local rel = math.clamp((mousePos - barPos) / barSize, 0, 1)
+            fill.Size = UDim2.new(rel, 0, 1, 0)
+            local val = minVal + (rel * (maxVal - minVal))
+            label.Text = string.format("%s: %.2f", name, val)
+            callback(val)
+        end
+    end)
+end
+
+makeSlider("Rapid Fire Delay", 0.01, 0.2, 0.05, function(v) settings.RapidFireDelay = v end)
+
 -- Правая панель (Список игроков)
 local PlayerListFrame = Instance.new("ScrollingFrame")
-PlayerListFrame.Size = UDim2.new(0, 265, 1, -56)
-PlayerListFrame.Position = UDim2.new(0, 235, 0, 50)
-PlayerListFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
+PlayerListFrame.Size = UDim2.new(0, 275, 1, -60)
+PlayerListFrame.Position = UDim2.new(0, 250, 0, 52)
+PlayerListFrame.BackgroundColor3 = Color3.fromRGB(7, 7, 10)
 PlayerListFrame.BorderSizePixel = 0
 PlayerListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 PlayerListFrame.ScrollBarThickness = 4
@@ -136,12 +209,12 @@ local function updatePlayerList()
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer then
             local pBtn = Instance.new("TextButton")
-            pBtn.Size = UDim2.new(1, -6, 0, 32)
+            pBtn.Size = UDim2.new(1, -6, 0, 34)
             
             local isSelected = settings.SelectedTargets[p.Name] == true
-            pBtn.BackgroundColor3 = isSelected and Color3.fromRGB(20, 80, 50) or Color3.fromRGB(20, 20, 26)
-            pBtn.Text = p.Name .. (isSelected and " [LOCKED]" or "")
-            pBtn.TextColor3 = isSelected and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(190, 190, 200)
+            pBtn.BackgroundColor3 = isSelected and Color3.fromRGB(20, 70, 45) or Color3.fromRGB(16, 16, 22)
+            pBtn.Text = p.Name .. (isSelected and " [LOCKED & CHAMS]" or "")
+            pBtn.TextColor3 = isSelected and Color3.fromRGB(120, 255, 170) or Color3.fromRGB(200, 200, 215)
             pBtn.TextSize = 11
             pBtn.Font = Enum.Font.Gotham
             pBtn.Parent = PlayerListFrame
@@ -153,14 +226,14 @@ local function updatePlayerList()
             pBtn.MouseButton1Click:Connect(function()
                 if settings.SelectedTargets[p.Name] then
                     settings.SelectedTargets[p.Name] = nil
-                    pBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+                    pBtn.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
                     pBtn.Text = p.Name
-                    pBtn.TextColor3 = Color3.fromRGB(190, 190, 200)
+                    pBtn.TextColor3 = Color3.fromRGB(200, 200, 215)
                 else
                     settings.SelectedTargets[p.Name] = true
-                    pBtn.BackgroundColor3 = Color3.fromRGB(20, 80, 50)
-                    pBtn.Text = p.Name .. " [LOCKED]"
-                    pBtn.TextColor3 = Color3.fromRGB(100, 255, 150)
+                    pBtn.BackgroundColor3 = Color3.fromRGB(20, 70, 45)
+                    pBtn.Text = p.Name .. " [LOCKED & CHAMS]"
+                    pBtn.TextColor3 = Color3.fromRGB(120, 255, 170)
                 end
             end)
         end
@@ -179,7 +252,7 @@ UserInputService.InputBegan:Connect(function(input)
     end
 end)
 
--- Подсветка персонажа (Highlight Chams вместо уродливых коробок)
+-- Подсветка скина (Chams Highlight)
 local function applyChams(player)
     if player == LocalPlayer then return end
     
@@ -187,18 +260,18 @@ local function applyChams(player)
         local char = player.Character
         if not char then return end
         
-        local highlight = char:FindFirstChild("DanHighlight")
+        local highlight = char:FindFirstChild("DanHighlightElite")
         
         if settings.Chams and settings.SelectedTargets[player.Name] and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
             if not highlight then
                 highlight = Instance.new("Highlight")
-                highlight.Name = "DanHighlight"
+                highlight.Name = "DanHighlightElite"
                 highlight.Adornee = char
                 highlight.Parent = char
             end
-            highlight.FillColor = Color3.fromRGB(0, 255, 120)
+            highlight.FillColor = Color3.fromRGB(50, 255, 120)
             highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-            highlight.FillTransparency = 0.4
+            highlight.FillTransparency = 0.35
             highlight.OutlineTransparency = 0
             highlight.Enabled = true
         else
@@ -212,7 +285,7 @@ end
 for _, p in ipairs(Players:GetPlayers()) do applyChams(p) end
 Players.PlayerAdded:Connect(applyChams)
 
--- Строгий Aimlock (работает только при зажатой ПКМ и наличии выбранной цели)
+-- Строгий Aimlock (ПКМ + выбранные цели)
 RunService.RenderStepped:Connect(function()
     if not settings.Aimlock then return end
     if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
@@ -233,20 +306,24 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Умный Rapid Fire: стреляет ТОЛЬКО КОГДА ТЫ САМ СТРЕЛЬНУЛ (Зажал ЛКМ)
+-- Умный Rapid Fire (Срабатывает только при зажатой ЛКМ)
+local lastShot = 0
 RunService.Heartbeat:Connect(function()
     if not settings.RapidFire then return end
     
-    -- Проверяем, зажата ли левая кнопка мыши (ЛКМ)
     if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-        local char = LocalPlayer.Character
-        if not char then return end
-        
-        local tool = char:FindFirstChildOfClass("Tool")
-        if tool then
-            pcall(function()
-                tool:Activate()
-            end)
+        local tickTime = tick()
+        if tickTime - lastShot >= settings.RapidFireDelay then
+            lastShot = tickTime
+            local char = LocalPlayer.Character
+            if not char then return end
+            
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then
+                pcall(function()
+                    tool:Activate()
+                end)
+            end
         end
     end
 end)

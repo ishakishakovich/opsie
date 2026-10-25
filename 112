@@ -1,4 +1,4 @@
--- dan ffa elite suite: ultra premium ui, neon accents, sliders for rapid fire & chams, chams highlight, strict aimlock
+-- dan ffa ultimate rage suite: hard-snap rage lock, customizable fly, chams, rapid fire, elite ui
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -7,28 +7,29 @@ local Camera = workspace.CurrentCamera
 
 local settings = {
     Chams = true,
-    Aimlock = true,
+    RageLock = true,
     RapidFire = true,
-    RapidFireDelay = 0.05, -- Скорость рапид фаЕра
-    ChamsTransparency = 0.4,
+    RapidFireDelay = 0.03,
+    Fly = false,
+    FlySpeed = 50,
     SelectedTargets = {}
 }
 
--- Удаляем старый интерфейс если он уже есть
-if game:GetService("CoreGui"):FindFirstChild("DanFFAEliteSuite") then
-    game:GetService("CoreGui").DanFFAEliteSuite:Destroy()
+-- Удаляем старый интерфейс если он есть
+if game:GetService("CoreGui"):FindFirstChild("DanFFARageSuite") then
+    game:GetService("CoreGui").DanFFARageSuite:Destroy()
 end
 
 -- UI Container
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "DanFFAEliteSuite"
+ScreenGui.Name = "DanFFARageSuite"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
--- Главное окно (Премиальный темный стиль с тенью)
+-- Главное окно
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 540, 0, 400)
-MainFrame.Position = UDim2.new(0.5, -270, 0.5, -200)
+MainFrame.Size = UDim2.new(0, 540, 0, 440)
+MainFrame.Position = UDim2.new(0.5, -270, 0.5, -220)
 MainFrame.BackgroundColor3 = Color3.fromRGB(9, 9, 12)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -39,16 +40,15 @@ local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 12)
 MainCorner.Parent = MainFrame
 
--- Тень окна
 local Shadow = Instance.new("UIStroke")
-Shadow.Color = Color3.fromRGB(35, 35, 50)
+Shadow.Color = Color3.fromRGB(45, 20, 30)
 Shadow.Thickness = 2
 Shadow.Parent = MainFrame
 
 -- Шапка
 local TopBar = Instance.new("Frame")
 TopBar.Size = UDim2.new(1, 0, 0, 45)
-TopBar.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
+TopBar.BackgroundColor3 = Color3.fromRGB(16, 14, 20)
 TopBar.BorderSizePixel = 0
 TopBar.Parent = MainFrame
 
@@ -59,7 +59,7 @@ TopCorner.Parent = TopBar
 local TopFix = Instance.new("Frame")
 TopFix.Size = UDim2.new(1, 0, 0, 10)
 TopFix.Position = UDim2.new(0, 0, 1, -10)
-TopFix.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
+TopFix.BackgroundColor3 = Color3.fromRGB(16, 14, 20)
 TopFix.BorderSizePixel = 0
 TopFix.Parent = TopBar
 
@@ -67,8 +67,8 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -20, 1, 0)
 Title.Position = UDim2.new(0, 16, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "DAN FFA // ELITE SUITE  [Right Shift]"
-Title.TextColor3 = Color3.fromRGB(110, 180, 255)
+Title.Text = "DAN FFA // RAGE & FLY SUITE  [Right Shift]"
+Title.TextColor3 = Color3.fromRGB(255, 80, 100)
 Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -80,7 +80,7 @@ LeftPanel.Size = UDim2.new(0, 225, 1, -60)
 LeftPanel.Position = UDim2.new(0, 15, 0, 52)
 LeftPanel.BackgroundTransparency = 1
 LeftPanel.BorderSizePixel = 0
-LeftPanel.CanvasSize = UDim2.new(0, 0, 0, 320)
+LeftPanel.CanvasSize = UDim2.new(0, 0, 0, 380)
 LeftPanel.ScrollBarThickness = 3
 LeftPanel.Parent = MainFrame
 
@@ -108,15 +108,16 @@ local function makeToggle(name, callback)
         active = not active
         callback(active)
         btn.Text = name .. (active and ": ON" or ": OFF")
-        btn.BackgroundColor3 = active and Color3.fromRGB(18, 18, 24) or Color3.fromRGB(45, 20, 25)
+        btn.BackgroundColor3 = active and Color3.fromRGB(18, 18, 24) or Color3.fromRGB(50, 20, 25)
     end)
 end
 
 makeToggle("Target Highlight (Chams)", function(v) settings.Chams = v end)
-makeToggle("Aimlock (RMB)", function(v) settings.Aimlock = v end)
+makeToggle("Rage Snaplock (RMB)", function(v) settings.RageLock = v end)
 makeToggle("Conditional Rapid Fire", function(v) settings.RapidFire = v end)
+makeToggle("Smooth Fly", function(v) settings.Fly = v end)
 
--- Функция создания красивого слайдера
+-- Функция создания слайдера
 local function makeSlider(name, minVal, maxVal, defaultVal, callback)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1, -4, 0, 50)
@@ -131,7 +132,7 @@ local function makeSlider(name, minVal, maxVal, defaultVal, callback)
     label.Size = UDim2.new(1, -16, 0, 20)
     label.Position = UDim2.new(0, 8, 0, 6)
     label.BackgroundTransparency = 1
-    label.Text = string.format("%s: %.2f", name, defaultVal)
+    label.Text = string.format("%s: %.1f", name, defaultVal)
     label.TextColor3 = Color3.fromRGB(200, 200, 215)
     label.TextSize = 11
     label.Font = Enum.Font.Gotham
@@ -151,7 +152,7 @@ local function makeSlider(name, minVal, maxVal, defaultVal, callback)
     
     local fill = Instance.new("Frame")
     fill.Size = UDim2.new((defaultVal - minVal) / (maxVal - minVal), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(80, 150, 255)
+    fill.BackgroundColor3 = Color3.fromRGB(255, 80, 100)
     fill.BorderSizePixel = 0
     fill.Parent = bar
     
@@ -174,13 +175,14 @@ local function makeSlider(name, minVal, maxVal, defaultVal, callback)
             local rel = math.clamp((mousePos - barPos) / barSize, 0, 1)
             fill.Size = UDim2.new(rel, 0, 1, 0)
             local val = minVal + (rel * (maxVal - minVal))
-            label.Text = string.format("%s: %.2f", name, val)
+            label.Text = string.format("%s: %.1f", name, val)
             callback(val)
         end
     end)
 end
 
-makeSlider("Rapid Fire Delay", 0.01, 0.2, 0.05, function(v) settings.RapidFireDelay = v end)
+makeSlider("Rapid Fire Delay", 0.01, 0.2, 0.03, function(v) settings.RapidFireDelay = v end)
+makeSlider("Fly Speed", 10, 200, 50, function(v) settings.FlySpeed = v end)
 
 -- Правая панель (Список игроков)
 local PlayerListFrame = Instance.new("ScrollingFrame")
@@ -212,9 +214,9 @@ local function updatePlayerList()
             pBtn.Size = UDim2.new(1, -6, 0, 34)
             
             local isSelected = settings.SelectedTargets[p.Name] == true
-            pBtn.BackgroundColor3 = isSelected and Color3.fromRGB(20, 70, 45) or Color3.fromRGB(16, 16, 22)
-            pBtn.Text = p.Name .. (isSelected and " [LOCKED & CHAMS]" or "")
-            pBtn.TextColor3 = isSelected and Color3.fromRGB(120, 255, 170) or Color3.fromRGB(200, 200, 215)
+            pBtn.BackgroundColor3 = isSelected and Color3.fromRGB(70, 20, 30) or Color3.fromRGB(16, 16, 22)
+            pBtn.Text = p.Name .. (isSelected and " [RAGE LOCKED]" or "")
+            pBtn.TextColor3 = isSelected and Color3.fromRGB(255, 120, 140) or Color3.fromRGB(200, 200, 215)
             pBtn.TextSize = 11
             pBtn.Font = Enum.Font.Gotham
             pBtn.Parent = PlayerListFrame
@@ -231,9 +233,9 @@ local function updatePlayerList()
                     pBtn.TextColor3 = Color3.fromRGB(200, 200, 215)
                 else
                     settings.SelectedTargets[p.Name] = true
-                    pBtn.BackgroundColor3 = Color3.fromRGB(20, 70, 45)
-                    pBtn.Text = p.Name .. " [LOCKED & CHAMS]"
-                    pBtn.TextColor3 = Color3.fromRGB(120, 255, 170)
+                    pBtn.BackgroundColor3 = Color3.fromRGB(70, 20, 30)
+                    pBtn.Text = p.Name .. " [RAGE LOCKED]"
+                    pBtn.TextColor3 = Color3.fromRGB(255, 120, 140)
                 end
             end)
         end
@@ -260,16 +262,16 @@ local function applyChams(player)
         local char = player.Character
         if not char then return end
         
-        local highlight = char:FindFirstChild("DanHighlightElite")
+        local highlight = char:FindFirstChild("DanHighlightRage")
         
         if settings.Chams and settings.SelectedTargets[player.Name] and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
             if not highlight then
                 highlight = Instance.new("Highlight")
-                highlight.Name = "DanHighlightElite"
+                highlight.Name = "DanHighlightRage"
                 highlight.Adornee = char
                 highlight.Parent = char
             end
-            highlight.FillColor = Color3.fromRGB(50, 255, 120)
+            highlight.FillColor = Color3.fromRGB(255, 50, 70)
             highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
             highlight.FillTransparency = 0.35
             highlight.OutlineTransparency = 0
@@ -285,9 +287,9 @@ end
 for _, p in ipairs(Players:GetPlayers()) do applyChams(p) end
 Players.PlayerAdded:Connect(applyChams)
 
--- Строгий Aimlock (ПКМ + выбранные цели)
+-- ЛЮТЫЙ RAGE AIMLOCK (Мгновенный snap без задержек в голову)
 RunService.RenderStepped:Connect(function()
-    if not settings.Aimlock then return end
+    if not settings.RageLock then return end
     if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local targetHead = nil
         
@@ -301,12 +303,43 @@ RunService.RenderStepped:Connect(function()
         end
         
         if targetHead then
+            -- Жесткий жесткий хард-снап
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
         end
     end
 end)
 
--- Умный Rapid Fire (Срабатывает только при зажатой ЛКМ)
+-- Аккуратный Smooth Fly
+local flyConnection
+RunService.RenderStepped:Connect(function()
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then return end
+    local rootPart = char.HumanoidRootPart
+    local humanoid = char.Humanoid
+
+    if settings.Fly then
+        humanoid.PlatformStand = true
+        local camCFrame = Camera.CFrame
+        local moveVector = Vector3.new()
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveVector = moveVector + camCFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveVector = moveVector - camCFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveVector = moveVector - camCFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveVector = moveVector + camCFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveVector = moveVector + Vector3.new(0, 1, 0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then moveVector = moveVector - Vector3.new(0, 1, 0) end
+
+        if moveVector.Magnitude > 0 then
+            rootPart.Velocity = moveVector.Unit * settings.FlySpeed
+        else
+            rootPart.Velocity = Vector3.new(0, 0.1, 0)
+        end
+    else
+        humanoid.PlatformStand = false
+    end
+end)
+
+-- Умный Rapid Fire (Срабатывает при зажатой ЛКМ)
 local lastShot = 0
 RunService.Heartbeat:Connect(function()
     if not settings.RapidFire then return end

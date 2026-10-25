@@ -1,4 +1,4 @@
--- dan ffa master fix: true horizontal stretch, working rapid fire, strict target lock & esp, right shift
+-- dan ffa ultimate master suite: premium ui, name-based persistent target list, strict lock & esp, right shift
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,21 +8,26 @@ local Camera = workspace.CurrentCamera
 local settings = {
     ESP = true,
     RageLock = true,
-    StretchRatio = 1.0, -- Horizontal stretch multiplier
+    StretchRatio = 1.0,
     RapidFire = true,
-    SelectedTargets = {}
+    SelectedTargets = {} -- Храним по никам (ключ = имя игрока), чтобы при перезаходе ничего не сбрасывалось
 }
 
--- UI Menu Container
+-- Удаляем старый GUI если есть
+if game:GetService("CoreGui"):FindFirstChild("DanFFAPremium") then
+    game:GetService("CoreGui").DanFFAPremium:Destroy()
+end
+
+-- Premium UI Container
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "DanFFAFixedMaster"
+ScreenGui.Name = "DanFFAPremium"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 480, 0, 420)
-MainFrame.Position = UDim2.new(0.5, -240, 0.5, -210)
-MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+MainFrame.Size = UDim2.new(0, 500, 0, 380)
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -190)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 19)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -30,58 +35,58 @@ MainFrame.Visible = true
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.CornerRadius = UDim.new(0, 12)
 MainCorner.Parent = MainFrame
 
--- Top Bar
+-- Top Bar (Header)
 local TopBar = Instance.new("Frame")
-TopBar.Size = UDim2.new(1, 0, 0, 40)
-TopBar.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+TopBar.Size = UDim2.new(1, 0, 0, 42)
+TopBar.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
 TopBar.BorderSizePixel = 0
 TopBar.Parent = MainFrame
 
 local TopCorner = Instance.new("UICorner")
-TopCorner.CornerRadius = UDim.new(0, 10)
+TopCorner.CornerRadius = UDim.new(0, 12)
 TopCorner.Parent = TopBar
 
 local TopFix = Instance.new("Frame")
 TopFix.Size = UDim2.new(1, 0, 0, 10)
 TopFix.Position = UDim2.new(0, 0, 1, -10)
-TopFix.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+TopFix.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
 TopFix.BorderSizePixel = 0
 TopFix.Parent = TopBar
 
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -20, 1, 0)
-Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Position = UDim2.new(0, 16, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "DAN FFA // FIXED MASTER SUITE [Right Shift]"
-Title.TextColor3 = Color3.fromRGB(100, 200, 255)
-Title.TextSize = 11
+Title.Text = "DAN FFA // PREMIUM SUITE  [Right Shift]"
+Title.TextColor3 = Color3.fromRGB(120, 170, 255)
+Title.TextSize = 12
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TopBar
 
--- Left Panel (Toggles & Sliders)
+-- Left Panel (Toggles)
 local LeftPanel = Instance.new("Frame")
-LeftPanel.Size = UDim2.new(0, 180, 1, -55)
-LeftPanel.Position = UDim2.new(0, 15, 0, 48)
+LeftPanel.Size = UDim2.new(0, 190, 1, -56)
+LeftPanel.Position = UDim2.new(0, 16, 0, 50)
 LeftPanel.BackgroundTransparency = 1
 LeftPanel.Parent = MainFrame
 
 local function makeToggle(name, y, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 36)
+    btn.Size = UDim2.new(1, 0, 0, 38)
     btn.Position = UDim2.new(0, 0, 0, y)
-    btn.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+    btn.BackgroundColor3 = Color3.fromRGB(26, 26, 34)
     btn.Text = name .. ": ON"
-    btn.TextColor3 = Color3.fromRGB(200, 200, 210)
+    btn.TextColor3 = Color3.fromRGB(220, 220, 230)
     btn.TextSize = 11
     btn.Font = Enum.Font.GothamMedium
     btn.Parent = LeftPanel
     
     local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, 6)
+    c.CornerRadius = UDim.new(0, 8)
     c.Parent = btn
     
     local active = true
@@ -89,131 +94,71 @@ local function makeToggle(name, y, callback)
         active = not active
         callback(active)
         btn.Text = name .. (active and ": ON" or ": OFF")
-        btn.BackgroundColor3 = active and Color3.fromRGB(28, 28, 38) or Color3.fromRGB(50, 25, 25)
+        btn.BackgroundColor3 = active and Color3.fromRGB(26, 26, 34) or Color3.fromRGB(50, 25, 28)
     end)
 end
 
-makeToggle("Strict ESP (Locked Only)", 0, function(v) settings.ESP = v end)
-makeToggle("Aimlock (RMB)", 44, function(v) settings.RageLock = v end)
-makeToggle("Rapid Fire", 88, function(v) settings.RapidFire = v end)
-
-local function makeSlider(name, y, minVal, maxVal, defaultVal, callback)
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 50)
-    container.Position = UDim2.new(0, 0, 0, y)
-    container.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
-    container.Parent = LeftPanel
-    
-    local sc = Instance.new("UICorner")
-    sc.CornerRadius = UDim.new(0, 6)
-    sc.Parent = container
-    
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 20)
-    label.Position = UDim2.new(0, 0, 0, 4)
-    label.BackgroundTransparency = 1
-    label.Text = string.format("%s: %.2fx", name, defaultVal)
-    label.TextColor3 = Color3.fromRGB(200, 200, 210)
-    label.TextSize = 11
-    label.Font = Enum.Font.Gotham
-    label.Parent = container
-    
-    local bar = Instance.new("Frame")
-    bar.Size = UDim2.new(0.85, 0, 0, 6)
-    bar.Position = UDim2.new(0.075, 0, 0, 32)
-    bar.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    bar.BorderSizePixel = 0
-    bar.Parent = container
-    
-    local bc = Instance.new("UICorner")
-    bc.CornerRadius = UDim.new(0, 3)
-    bc.Parent = bar
-    
-    local fill = Instance.new("Frame")
-    fill.Size = UDim2.new((defaultVal - minVal) / (maxVal - minVal), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
-    fill.BorderSizePixel = 0
-    fill.Parent = bar
-    
-    local fc = Instance.new("UICorner")
-    fc.CornerRadius = UDim.new(0, 3)
-    fc.Parent = fill
-    
-    local dragging = false
-    bar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
-    end)
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local mousePos = UserInputService:GetMouseLocation().X
-            local barPos = bar.AbsolutePosition.X
-            local barSize = bar.AbsoluteSize.X
-            local rel = math.clamp((mousePos - barPos) / barSize, 0, 1)
-            fill.Size = UDim2.new(rel, 0, 1, 0)
-            local val = minVal + (rel * (maxVal - minVal))
-            label.Text = string.format("%s: %.2fx", name, val)
-            callback(val)
-        end
-    end)
-end
-
-makeSlider("Horiz. Stretch", 132, 1.0, 2.5, 1.0, function(v) settings.StretchRatio = v end)
+makeToggle("Strict ESP", 0, function(v) settings.ESP = v end)
+makeToggle("Aimlock (RMB)", 46, function(v) settings.RageLock = v end)
+makeToggle("Rapid Fire", 92, function(v) settings.RapidFire = v end)
 
 -- Right Panel (Player List)
 local PlayerListFrame = Instance.new("ScrollingFrame")
-PlayerListFrame.Size = UDim2.new(0, 250, 1, -55)
-PlayerListFrame.Position = UDim2.new(0, 205, 0, 48)
-PlayerListFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
+PlayerListFrame.Size = UDim2.new(0, 260, 1, -56)
+PlayerListFrame.Position = UDim2.new(0, 215, 0, 50)
+PlayerListFrame.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
 PlayerListFrame.BorderSizePixel = 0
 PlayerListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+PlayerListFrame.ScrollBarThickness = 4
 PlayerListFrame.Parent = MainFrame
 
 local ListCorner = Instance.new("UICorner")
-ListCorner.CornerRadius = UDim.new(0, 6)
+ListCorner.CornerRadius = UDim.new(0, 8)
 ListCorner.Parent = PlayerListFrame
 
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 4)
+UIListLayout.Padding = UDim.new(0, 6)
 UIListLayout.Parent = PlayerListFrame
 
 local function updatePlayerList()
     for _, child in ipairs(PlayerListFrame:GetChildren()) do
         if child:IsA("TextButton") then child:Destroy() end
     end
+    
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer then
             local pBtn = Instance.new("TextButton")
-            pBtn.Size = UDim2.new(1, -4, 0, 30)
-            local isSelected = settings.SelectedTargets[p] == true
-            pBtn.BackgroundColor3 = isSelected and Color3.fromRGB(30, 70, 50) or Color3.fromRGB(26, 26, 36)
+            pBtn.Size = UDim2.new(1, -6, 0, 32)
+            
+            local isSelected = settings.SelectedTargets[p.Name] == true
+            pBtn.BackgroundColor3 = isSelected and Color3.fromRGB(30, 80, 50) or Color3.fromRGB(22, 22, 28)
             pBtn.Text = p.Name .. (isSelected and " [LOCKED & ESP]" or "")
-            pBtn.TextColor3 = Color3.fromRGB(210, 210, 220)
+            pBtn.TextColor3 = isSelected and Color3.fromRGB(150, 255, 180) or Color3.fromRGB(200, 200, 210)
             pBtn.TextSize = 11
             pBtn.Font = Enum.Font.Gotham
             pBtn.Parent = PlayerListFrame
             
             local pc = Instance.new("UICorner")
-            pc.CornerRadius = UDim.new(0, 4)
+            pc.CornerRadius = UDim.new(0, 6)
             pc.Parent = pBtn
             
             pBtn.MouseButton1Click:Connect(function()
-                if settings.SelectedTargets[p] then
-                    settings.SelectedTargets[p] = nil
-                    pBtn.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+                if settings.SelectedTargets[p.Name] then
+                    settings.SelectedTargets[p.Name] = nil
+                    pBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
                     pBtn.Text = p.Name
+                    pBtn.TextColor3 = Color3.fromRGB(200, 200, 210)
                 else
-                    settings.SelectedTargets[p] = true
-                    pBtn.BackgroundColor3 = Color3.fromRGB(30, 70, 50)
+                    settings.SelectedTargets[p.Name] = true
+                    pBtn.BackgroundColor3 = Color3.fromRGB(30, 80, 50)
                     pBtn.Text = p.Name .. " [LOCKED & ESP]"
+                    pBtn.TextColor3 = Color3.fromRGB(150, 255, 180)
                 end
             end)
         end
     end
-    PlayerListFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+    PlayerListFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
 end
 
 Players.PlayerAdded:Connect(updatePlayerList)
@@ -227,12 +172,12 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     end
 end)
 
--- ESP Implementation (Strictly ONLY for selected/locked targets)
+-- ESP Implementation (Strictly ONLY for selected targets by Name)
 local function createESP(player)
     if player == LocalPlayer then return end
     local box = Drawing.new("Square")
     box.Visible = false
-    box.Color = Color3.fromRGB(60, 240, 100)
+    box.Color = Color3.fromRGB(50, 255, 100)
     box.Thickness = 1.5
     box.Filled = false
 
@@ -244,11 +189,12 @@ local function createESP(player)
     nameText.Outline = true
 
     RunService.RenderStepped:Connect(function()
-        if not settings.ESP or not settings.SelectedTargets[player] then
+        if not settings.ESP or not settings.SelectedTargets[player.Name] then
             box.Visible = false
             nameText.Visible = false
             return
         end
+        
         local char = player.Character
         if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
             local vector, onScreen = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
@@ -256,13 +202,13 @@ local function createESP(player)
                 local headPos = Camera:WorldToViewportPoint(char.Head.Position + Vector3.new(0, 0.5, 0))
                 local legPos = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position - Vector3.new(0, 3, 0))
                 local height = math.abs(legPos.Y - headPos.Y)
-                local width = (height / 2) * settings.StretchRatio
+                local width = height / 2
                 
                 box.Size = Vector2.new(width, height)
                 box.Position = Vector2.new(vector.X - width / 2, headPos.Y)
                 box.Visible = true
 
-                nameText.Text = player.Name .. " [LOCKED]"
+                nameText.Text = player.Name .. " [TARGET]"
                 nameText.Position = Vector2.new(vector.X, headPos.Y - 18)
                 nameText.Visible = true
             else
@@ -279,38 +225,28 @@ end
 for _, p in ipairs(Players:GetPlayers()) do createESP(p) end
 Players.PlayerAdded:Connect(createESP)
 
--- True Horizontal Screen Stretch (Aspect Ratio / Viewport Scaling Matrix override)
+-- Strict Aimlock (ONLY locks onto targets checked in the list)
 RunService.RenderStepped:Connect(function()
-    if Camera then
-        pcall(function()
-            -- Override projection matrix to stretch horizontally without zooming FOV
-            local currentMatrix = Camera:GetProjectionMatrix()
-            -- Scale horizontal element (1,1) by StretchRatio
-            local scaledMatrix = currentMatrix * Cfn or currentMatrix
-            -- Alternatively adjust viewport aspect ratio mapping
-            Camera.FieldOfView = 70
-        end)
-    end
-
-    -- Strict Aimlock (ONLY locks onto explicitly selected/locked targets)
     if not settings.RageLock then return end
     if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local targetHead = nil
-        for p, active in pairs(settings.SelectedTargets) do
-            if active then
+        
+        for _, p in ipairs(Players:GetPlayers()) do
+            if settings.SelectedTargets[p.Name] then
                 if p.Character and p.Character:FindFirstChild("Head") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
                     targetHead = p.Character.Head
                     break
                 end
             end
         end
+        
         if targetHead then
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
         end
     end
 end)
 
--- Working Rapid Fire (Tool activation spam loop)
+-- Rapid Fire Tool Loop
 RunService.Heartbeat:Connect(function()
     if not settings.RapidFire then return end
     local char = LocalPlayer.Character

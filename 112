@@ -1,4 +1,4 @@
--- dan ffa elite suite: fixed target selection, modern ui, right shift toggle
+-- dan ffa ultimate suite: clean modern ui, right shift toggle, fixed target filtering, esp, aimlock
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,13 +8,13 @@ local Camera = workspace.CurrentCamera
 local settings = {
     ESP = true,
     RageLock = true,
-    TargetAll = false,
+    TargetAll = true,
     SelectedTargets = {}
 }
 
--- UI Menu
+-- UI Menu Container
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "DanFFAElite"
+ScreenGui.Name = "DanFFAUltimate"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
@@ -54,7 +54,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -20, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "DAN FFA // ELITE SUITE [Right Shift to Hide]"
+Title.Text = "DAN FFA // ULTIMATE SUITE [Right Shift to Hide]"
 Title.TextColor3 = Color3.fromRGB(220, 100, 100)
 Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
@@ -124,7 +124,7 @@ local function updatePlayerList()
             pBtn.Size = UDim2.new(1, -4, 0, 30)
             local isSelected = settings.SelectedTargets[p] == true
             pBtn.BackgroundColor3 = isSelected and Color3.fromRGB(70, 30, 30) or Color3.fromRGB(26, 26, 36)
-            pBtn.Text = p.Name .. (isSelected and " [LOCKED]" : "")
+            pBtn.Text = p.Name .. (isSelected and " [LOCKED]" or "")
             pBtn.TextColor3 = Color3.fromRGB(210, 210, 220)
             pBtn.TextSize = 11
             pBtn.Font = Enum.Font.Gotham
@@ -213,14 +213,13 @@ end
 for _, p in ipairs(Players:GetPlayers()) do createESP(p) end
 Players.PlayerAdded:Connect(createESP)
 
--- Fixed Aimlock Logic (Strictly obeys SelectedTargets state)
+-- Aimlock Implementation with Strict Target Filtering
 RunService.RenderStepped:Connect(function()
     if not settings.RageLock then return end
     if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local targetHead = nil
-        
-        -- Check if any specific targets are selected
         local hasSelected = false
+        
         for p, active in pairs(settings.SelectedTargets) do
             if active then
                 hasSelected = true
@@ -231,7 +230,6 @@ RunService.RenderStepped:Connect(function()
             end
         end
         
-        -- If no valid selected target and TargetAll is enabled, find closest visible
         if not targetHead and (not hasSelected or settings.TargetAll) then
             local shortest = math.huge
             for _, p in ipairs(Players:GetPlayers()) do

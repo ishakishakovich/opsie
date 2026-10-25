@@ -1,4 +1,4 @@
--- dan ffa mega rage suite: silent aim, multi-target, live player list menu
+-- dan ffa elite suite: fixed target selection, modern ui, right shift toggle
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,57 +8,73 @@ local Camera = workspace.CurrentCamera
 local settings = {
     ESP = true,
     RageLock = true,
-    MultiTarget = true,
     TargetAll = false,
     SelectedTargets = {}
 }
 
 -- UI Menu
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "DanFFARage"
+ScreenGui.Name = "DanFFAElite"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 520, 0, 340)
-MainFrame.Position = UDim2.new(0.5, -260, 0.5, -170)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+MainFrame.Size = UDim2.new(0, 480, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -240, 0.5, -160)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
+MainFrame.Visible = true
 MainFrame.Parent = ScreenGui
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = MainFrame
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+-- Top Bar
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 40)
+TopBar.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local TopCorner = Instance.new("UICorner")
+TopCorner.CornerRadius = UDim.new(0, 10)
+TopCorner.Parent = TopBar
+
+local TopFix = Instance.new("Frame")
+TopFix.Size = UDim2.new(1, 0, 0, 10)
+TopFix.Position = UDim2.new(0, 0, 1, -10)
+TopFix.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+TopFix.BorderSizePixel = 0
+TopFix.Parent = TopBar
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 36)
-Title.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-Title.Text = "DAN FFA // MEGA RAGE & PLAYER SELECTOR"
-Title.TextColor3 = Color3.fromRGB(255, 60, 60)
+Title.Size = UDim2.new(1, -20, 1, 0)
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "DAN FFA // ELITE SUITE [Right Shift to Hide]"
+Title.TextColor3 = Color3.fromRGB(220, 100, 100)
 Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
-Title.Parent = MainFrame
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TopBar
 
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 8)
-TitleCorner.Parent = Title
-
--- Left Panel: Toggles
+-- Left Panel (Toggles)
 local LeftPanel = Instance.new("Frame")
-LeftPanel.Size = UDim2.new(0, 200, 1, -46)
-LeftPanel.Position = UDim2.new(0, 10, 0, 42)
+LeftPanel.Size = UDim2.new(0, 180, 1, -55)
+LeftPanel.Position = UDim2.new(0, 15, 0, 48)
 LeftPanel.BackgroundTransparency = 1
 LeftPanel.Parent = MainFrame
 
 local function makeToggle(name, y, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 36)
+    btn.Size = UDim2.new(1, 0, 0, 38)
     btn.Position = UDim2.new(0, 0, 0, y)
-    btn.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+    btn.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
     btn.Text = name .. ": ON"
-    btn.TextColor3 = Color3.fromRGB(220, 220, 230)
+    btn.TextColor3 = Color3.fromRGB(200, 200, 210)
     btn.TextSize = 12
     btn.Font = Enum.Font.GothamMedium
     btn.Parent = LeftPanel
@@ -72,19 +88,19 @@ local function makeToggle(name, y, callback)
         active = not active
         callback(active)
         btn.Text = name .. (active and ": ON" or ": OFF")
-        btn.BackgroundColor3 = active and Color3.fromRGB(24, 24, 32) or Color3.fromRGB(45, 20, 20)
+        btn.BackgroundColor3 = active and Color3.fromRGB(28, 28, 38) or Color3.fromRGB(50, 25, 25)
     end)
 end
 
 makeToggle("ESP & Names", 0, function(v) settings.ESP = v end)
-makeToggle("Rage Lock (RMB)", 44, function(v) settings.RageLock = v end)
-makeToggle("Lock All Targets", 88, function(v) settings.TargetAll = v end)
+makeToggle("Aimlock (RMB)", 46, function(v) settings.RageLock = v end)
+makeToggle("Target All Mode", 92, function(v) settings.TargetAll = v end)
 
--- Right Panel: Live Player Selector List
+-- Right Panel (Player List)
 local PlayerListFrame = Instance.new("ScrollingFrame")
-PlayerListFrame.Size = UDim2.new(0, 290, 1, -46)
-PlayerListFrame.Position = UDim2.new(0, 215, 0, 42)
-PlayerListFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+PlayerListFrame.Size = UDim2.new(0, 250, 1, -55)
+PlayerListFrame.Position = UDim2.new(0, 205, 0, 48)
+PlayerListFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
 PlayerListFrame.BorderSizePixel = 0
 PlayerListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 PlayerListFrame.Parent = MainFrame
@@ -106,10 +122,11 @@ local function updatePlayerList()
         if p ~= LocalPlayer then
             local pBtn = Instance.new("TextButton")
             pBtn.Size = UDim2.new(1, -4, 0, 30)
-            pBtn.BackgroundColor3 = settings.SelectedTargets[p] and Color3.fromRGB(60, 30, 30) or Color3.fromRGB(26, 26, 36)
-            pBtn.Text = p.Name .. (settings.SelectedTargets[p] and " [LOCKED]" or "")
-            pBtn.TextColor3 = Color3.fromRGB(200, 200, 210)
-            pBtn.TextSize = 12
+            local isSelected = settings.SelectedTargets[p] == true
+            pBtn.BackgroundColor3 = isSelected and Color3.fromRGB(70, 30, 30) or Color3.fromRGB(26, 26, 36)
+            pBtn.Text = p.Name .. (isSelected and " [LOCKED]" : "")
+            pBtn.TextColor3 = Color3.fromRGB(210, 210, 220)
+            pBtn.TextSize = 11
             pBtn.Font = Enum.Font.Gotham
             pBtn.Parent = PlayerListFrame
             
@@ -124,7 +141,7 @@ local function updatePlayerList()
                     pBtn.Text = p.Name
                 else
                     settings.SelectedTargets[p] = true
-                    pBtn.BackgroundColor3 = Color3.fromRGB(60, 30, 30)
+                    pBtn.BackgroundColor3 = Color3.fromRGB(70, 30, 30)
                     pBtn.Text = p.Name .. " [LOCKED]"
                 end
             end)
@@ -137,12 +154,19 @@ Players.PlayerAdded:Connect(updatePlayerList)
 Players.PlayerRemoving:Connect(updatePlayerList)
 task.spawn(updatePlayerList)
 
+-- Toggle Menu Visibility with Right Shift
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        MainFrame.Visible = not MainFrame.Visible
+    end
+end)
+
 -- ESP Implementation
 local function createESP(player)
     if player == LocalPlayer then return end
     local box = Drawing.new("Square")
     box.Visible = false
-    box.Color = Color3.fromRGB(255, 40, 40)
+    box.Color = Color3.fromRGB(240, 60, 60)
     box.Thickness = 1.5
     box.Filled = false
 
@@ -189,22 +213,26 @@ end
 for _, p in ipairs(Players:GetPlayers()) do createESP(p) end
 Players.PlayerAdded:Connect(createESP)
 
--- Rage Lock (Hard Snap / Multi-Target Switching)
+-- Fixed Aimlock Logic (Strictly obeys SelectedTargets state)
 RunService.RenderStepped:Connect(function()
     if not settings.RageLock then return end
     if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local targetHead = nil
         
-        -- Check manually selected targets first
-        for p, _ in pairs(settings.SelectedTargets) do
-            if p.Character and p.Character:FindFirstChild("Head") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-                targetHead = p.Character.Head
-                break
+        -- Check if any specific targets are selected
+        local hasSelected = false
+        for p, active in pairs(settings.SelectedTargets) do
+            if active then
+                hasSelected = true
+                if p.Character and p.Character:FindFirstChild("Head") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                    targetHead = p.Character.Head
+                    break
+                end
             end
         end
         
-        -- If no explicit target selected or TargetAll is active, target closest/all
-        if not targetHead then
+        -- If no valid selected target and TargetAll is enabled, find closest visible
+        if not targetHead and (not hasSelected or settings.TargetAll) then
             local shortest = math.huge
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") and p.Character.Humanoid.Health > 0 then

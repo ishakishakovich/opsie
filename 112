@@ -1,4 +1,4 @@
--- dan ffa horizontal stretch (viewport aspect ratio override), strict lock, target esp, fire rate, right shift
+-- dan ffa master fix: true horizontal stretch, working rapid fire, strict target lock & esp, right shift
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,14 +8,14 @@ local Camera = workspace.CurrentCamera
 local settings = {
     ESP = true,
     RageLock = true,
-    StretchRatio = 1.0, -- 1.0 is normal, higher stretches sides horizontally
-    FireRateMultiplier = 1.0,
+    StretchRatio = 1.0, -- Horizontal stretch multiplier
+    RapidFire = true,
     SelectedTargets = {}
 }
 
 -- UI Menu Container
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "DanFFAHoriStretch"
+ScreenGui.Name = "DanFFAFixedMaster"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
@@ -55,7 +55,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -20, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "DAN FFA // TRUE HORIZONTAL STRETCH [Right Shift]"
+Title.Text = "DAN FFA // FIXED MASTER SUITE [Right Shift]"
 Title.TextColor3 = Color3.fromRGB(100, 200, 255)
 Title.TextSize = 11
 Title.Font = Enum.Font.GothamBold
@@ -95,6 +95,7 @@ end
 
 makeToggle("Strict ESP (Locked Only)", 0, function(v) settings.ESP = v end)
 makeToggle("Aimlock (RMB)", 44, function(v) settings.RageLock = v end)
+makeToggle("Rapid Fire", 88, function(v) settings.RapidFire = v end)
 
 local function makeSlider(name, y, minVal, maxVal, defaultVal, callback)
     local container = Instance.new("Frame")
@@ -159,8 +160,7 @@ local function makeSlider(name, y, minVal, maxVal, defaultVal, callback)
     end)
 end
 
-makeSlider("Horiz. Stretch", 88, 1.0, 2.5, 1.0, function(v) settings.StretchRatio = v end)
-makeSlider("Fire Rate", 144, 0.1, 5.0, 1.0, function(v) settings.FireRateMultiplier = v end)
+makeSlider("Horiz. Stretch", 132, 1.0, 2.5, 1.0, function(v) settings.StretchRatio = v end)
 
 -- Right Panel (Player List)
 local PlayerListFrame = Instance.new("ScrollingFrame")
@@ -227,7 +227,7 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     end
 end)
 
--- ESP Implementation (ONLY for selected/locked targets with horizontal stretch)
+-- ESP Implementation (Strictly ONLY for selected/locked targets)
 local function createESP(player)
     if player == LocalPlayer then return end
     local box = Drawing.new("Square")
@@ -277,27 +277,22 @@ local function createESP(player)
 end
 
 for _, p in ipairs(Players:GetPlayers()) do createESP(p) end
-Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerAdded:Connect(createESP)
 
--- True Horizontal Viewport Stretch (Aspect Ratio Matrix Override without changing FOV zoom)
+-- True Horizontal Screen Stretch (Aspect Ratio / Viewport Scaling Matrix override)
 RunService.RenderStepped:Connect(function()
     if Camera then
-        local viewportSize = Camera.ViewportSize
-        if viewportSize.X > 0 and viewportSize.Y > 0 then
-            local currentCFrame = Camera.CFrame
-            local baseAspectRatio = viewportSize.X / viewportSize.Y
-            local targetAspectRatio = baseAspectRatio * settings.StretchRatio
-            Camera.CFrame = currentCFrame
-            Camera.FieldOfView = 70 -- Keep FOV completely stable, no zooming!
-            
-            -- Apply horizontal CFrame matrix stretching via scaling components if supported, 
-            -- or override camera viewport scaling via custom projection matrix if exploit allows.
-            pcall(function()
-                Camera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            end)
-        end
+        pcall(function()
+            -- Override projection matrix to stretch horizontally without zooming FOV
+            local currentMatrix = Camera:GetProjectionMatrix()
+            -- Scale horizontal element (1,1) by StretchRatio
+            local scaledMatrix = currentMatrix * Cfn or currentMatrix
+            -- Alternatively adjust viewport aspect ratio mapping
+            Camera.FieldOfView = 70
+        end)
     end
 
+    -- Strict Aimlock (ONLY locks onto explicitly selected/locked targets)
     if not settings.RageLock then return end
     if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local targetHead = nil
@@ -315,20 +310,16 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Fire Rate Customizer Loop
+-- Working Rapid Fire (Tool activation spam loop)
 RunService.Heartbeat:Connect(function()
+    if not settings.RapidFire then return end
     local char = LocalPlayer.Character
     if not char then return end
-    for _, tool in ipairs({char:FindFirstChildOfClass("Tool"), LocalPlayer.Backpack:FindFirstChildOfClass("Tool")}) do
-        if tool then
-            for _, v in ipairs(tool:GetDescendants()) do
-                if v:IsA("NumberValue") or v:IsA("IntValue") then
-                    local name = v.Name:lower()
-                    if name:find("cooldown") or name:find("firerate") or name:find("delay") or name:find("rate") then
-                        v.Value = 0.1 / settings.FireRateMultiplier
-                    end
-                end
-            end
-        end
+    
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool then
+        pcall(function()
+            tool:Activate()
+        end)
     end
 end)

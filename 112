@@ -1,4 +1,4 @@
--- dan ffa ultimate suite + screen stretch slider, strict lock, esp, right shift toggle
+-- dan ffa master suite: strict target esp, horizontal screen stretch, custom fire rate slider, right shift toggle
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,19 +8,20 @@ local Camera = workspace.CurrentCamera
 local settings = {
     ESP = true,
     RageLock = true,
-    StretchFactor = 1.0, -- 1.0 is normal, <1 or >1 stretches
+    StretchFactor = 1.0,
+    FireRateMultiplier = 1.0,
     SelectedTargets = {}
 }
 
 -- UI Menu Container
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "DanFFAStretch"
+ScreenGui.Name = "DanFFAMaster"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 480, 0, 380)
-MainFrame.Position = UDim2.new(0.5, -240, 0.5, -190)
+MainFrame.Size = UDim2.new(0, 480, 0, 420)
+MainFrame.Position = UDim2.new(0.5, -240, 0.5, -210)
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -54,14 +55,14 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -20, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "DAN FFA // STRETCH & STRICT LOCK [Right Shift]"
+Title.Text = "DAN FFA // MASTER SUITE [Right Shift]"
 Title.TextColor3 = Color3.fromRGB(100, 200, 255)
 Title.TextSize = 12
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TopBar
 
--- Left Panel (Toggles & Slider)
+-- Left Panel (Toggles & Sliders)
 local LeftPanel = Instance.new("Frame")
 LeftPanel.Size = UDim2.new(0, 180, 1, -55)
 LeftPanel.Position = UDim2.new(0, 15, 0, 48)
@@ -92,79 +93,75 @@ local function makeToggle(name, y, callback)
     end)
 end
 
-makeToggle("ESP & Names", 0, function(v) settings.ESP = v end)
+makeToggle("Strict ESP (Locked Only)", 0, function(v) settings.ESP = v end)
 makeToggle("Aimlock (RMB)", 44, function(v) settings.RageLock = v end)
 
--- Screen Stretch Slider UI
-local SliderContainer = Instance.new("Frame")
-SliderContainer.Size = UDim2.new(1, 0, 0, 55)
-SliderContainer.Position = UDim2.new(0, 0, 0, 88)
-SliderContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
-SliderContainer.Parent = LeftPanel
+-- Function to create custom sliders
+local function makeSlider(name, y, minVal, maxVal, defaultVal, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 50)
+    container.Position = UDim2.new(0, 0, 0, y)
+    container.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+    container.Parent = LeftPanel
+    
+    local sc = Instance.new("UICorner")
+    sc.CornerRadius = UDim.new(0, 6)
+    sc.Parent = container
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.Position = UDim2.new(0, 0, 0, 4)
+    label.BackgroundTransparency = 1
+    label.Text = string.format("%s: %.1f", name, defaultVal)
+    label.TextColor3 = Color3.fromRGB(200, 200, 210)
+    label.TextSize = 11
+    label.Font = Enum.Font.Gotham
+    label.Parent = container
+    
+    local bar = Instance.new("Frame")
+    bar.Size = UDim2.new(0.85, 0, 0, 6)
+    bar.Position = UDim2.new(0.075, 0, 0, 32)
+    bar.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    bar.BorderSizePixel = 0
+    bar.Parent = container
+    
+    local bc = Instance.new("UICorner")
+    bc.CornerRadius = UDim.new(0, 3)
+    bc.Parent = bar
+    
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new((defaultVal - minVal) / (maxVal - minVal), 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
+    fill.BorderSizePixel = 0
+    fill.Parent = bar
+    
+    local fc = Instance.new("UICorner")
+    fc.CornerRadius = UDim.new(0, 3)
+    fc.Parent = fill
+    
+    local dragging = false
+    bar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mousePos = UserInputService:GetMouseLocation().X
+            local barPos = bar.AbsolutePosition.X
+            local barSize = bar.AbsoluteSize.X
+            local rel = math.clamp((mousePos - barPos) / barSize, 0, 1)
+            fill.Size = UDim2.new(rel, 0, 1, 0)
+            local val = minVal + (rel * (maxVal - minVal))
+            label.Text = string.format("%s: %.2f", name, val)
+            callback(val)
+        end
+    end)
+end
 
-local SliderCorner = Instance.new("UICorner")
-SliderCorner.CornerRadius = UDim.new(0, 6)
-SliderCorner.Parent = SliderContainer
-
-local SliderLabel = Instance.new("TextLabel")
-SliderLabel.Size = UDim2.new(1, 0, 0, 22)
-SliderLabel.Position = UDim2.new(0, 0, 0, 4)
-SliderLabel.BackgroundTransparency = 1
-SliderLabel.Text = "Screen Stretch: 1.0x"
-SliderLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
-SliderLabel.TextSize = 11
-SliderLabel.Font = Enum.Font.Gotham
-SliderLabel.Parent = SliderContainer
-
-local SliderBar = Instance.new("Frame")
-SliderBar.Size = UDim2.new(0.85, 0, 0, 6)
-SliderBar.Position = UDim2.new(0.075, 0, 0, 34)
-SliderBar.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-SliderBar.BorderSizePixel = 0
-SliderBar.Parent = SliderContainer
-
-local SliderBarCorner = Instance.new("UICorner")
-SliderBarCorner.CornerRadius = UDim.new(0, 3)
-SliderBarCorner.Parent = SliderBar
-
-local SliderFill = Instance.new("Frame")
-SliderFill.Size = UDim2.new(0.5, 0, 1, 0)
-SliderFill.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
-SliderFill.BorderSizePixel = 0
-SliderFill.Parent = SliderBar
-
-local SliderFillCorner = Instance.new("UICorner")
-SliderFillCorner.CornerRadius = UDim.new(0, 3)
-SliderFillCorner.Parent = SliderFill
-
--- Slider Drag Logic
-local dragging = false
-SliderBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local mousePos = UserInputService:GetMouseLocation().X
-        local barPos = SliderBar.AbsolutePosition.X
-        local barSize = SliderBar.AbsoluteSize.X
-        local rel = math.clamp((mousePos - barPos) / barSize, 0, 1)
-        
-        SliderFill.Size = UDim2.new(rel, 0, 1, 0)
-        -- Map rel (0 to 1) to stretch factor (0.5x to 2.0x)
-        local factor = 0.5 + (rel * 1.5)
-        settings.StretchFactor = factor
-        SliderLabel.Text = string.format("Screen Stretch: %.2fx", factor)
-    end
-end)
+makeSlider("Stretch (Width)", 88, 0.5, 3.0, 1.0, function(v) settings.StretchFactor = v end)
+makeSlider("Fire Rate", 144, 0.1, 5.0, 1.0, function(v) settings.FireRateMultiplier = v end)
 
 -- Right Panel (Player List)
 local PlayerListFrame = Instance.new("ScrollingFrame")
@@ -194,7 +191,7 @@ local function updatePlayerList()
             pBtn.Size = UDim2.new(1, -4, 0, 30)
             local isSelected = settings.SelectedTargets[p] == true
             pBtn.BackgroundColor3 = isSelected and Color3.fromRGB(30, 70, 50) or Color3.fromRGB(26, 26, 36)
-            pBtn.Text = p.Name .. (isSelected and " [LOCKED]" or "")
+            pBtn.Text = p.Name .. (isSelected and " [LOCKED & ESP]" or "")
             pBtn.TextColor3 = Color3.fromRGB(210, 210, 220)
             pBtn.TextSize = 11
             pBtn.Font = Enum.Font.Gotham
@@ -212,7 +209,7 @@ local function updatePlayerList()
                 else
                     settings.SelectedTargets[p] = true
                     pBtn.BackgroundColor3 = Color3.fromRGB(30, 70, 50)
-                    pBtn.Text = p.Name .. " [LOCKED]"
+                    pBtn.Text = p.Name .. " [LOCKED & ESP]"
                 end
             end)
         end
@@ -231,12 +228,12 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     end
 end)
 
--- ESP Implementation
+-- ESP Implementation (ONLY for selected/locked targets)
 local function createESP(player)
     if player == LocalPlayer then return end
     local box = Drawing.new("Square")
     box.Visible = false
-    box.Color = Color3.fromRGB(240, 60, 60)
+    box.Color = Color3.fromRGB(60, 240, 100)
     box.Thickness = 1.5
     box.Filled = false
 
@@ -248,7 +245,7 @@ local function createESP(player)
     nameText.Outline = true
 
     RunService.RenderStepped:Connect(function()
-        if not settings.ESP then
+        if not settings.ESP or not settings.SelectedTargets[player] then
             box.Visible = false
             nameText.Visible = false
             return
@@ -260,13 +257,13 @@ local function createESP(player)
                 local headPos = Camera:WorldToViewportPoint(char.Head.Position + Vector3.new(0, 0.5, 0))
                 local legPos = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position - Vector3.new(0, 3, 0))
                 local height = math.abs(legPos.Y - headPos.Y)
-                local width = (height / 2) * settings.StretchFactor -- Apply stretch factor to ESP width
+                local width = (height / 2) * settings.StretchFactor -- Horizontal Stretch applied here
                 
                 box.Size = Vector2.new(width, height)
                 box.Position = Vector2.new(vector.X - width / 2, headPos.Y)
                 box.Visible = true
 
-                nameText.Text = player.Name
+                nameText.Text = player.Name .. " [LOCKED]"
                 nameText.Position = Vector2.new(vector.X, headPos.Y - 18)
                 nameText.Visible = true
             else
@@ -283,13 +280,8 @@ end
 for _, p in ipairs(Players:GetPlayers()) do createESP(p) end
 Players.PlayerAdded:Connect(createESP)
 
--- Strict Aimlock + Screen Stretch Aspect Ratio Modifier
+-- Main Combat Loop (Strict Aimlock + Custom Fire Rate Modifier)
 RunService.RenderStepped:Connect(function()
-    -- Apply viewport scaling / aspect ratio stretch simulation
-    if Camera then
-        Camera.FieldOfView = 70 / settings.StretchFactor
-    end
-
     if not settings.RageLock then return end
     if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local targetHead = nil
@@ -305,6 +297,25 @@ RunService.RenderStepped:Connect(function()
         
         if targetHead then
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
+        end
+    end
+end)
+
+-- Fire Rate Customizer Loop
+RunService.Heartbeat:Connect(function()
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    for _, tool in ipairs({char:FindFirstChildOfClass("Tool"), LocalPlayer.Backpack:FindFirstChildOfClass("Tool")}) do
+        if tool then
+            for _, v in ipairs(tool:GetDescendants()) do
+                if v:IsA("NumberValue") or v:IsA("IntValue") then
+                    local name = v.Name:lower()
+                    if name:find("cooldown") or name:find("firerate") or name:find("delay") or name:find("rate") then
+                        v.Value = 0.1 / settings.FireRateMultiplier
+                    end
+                end
+            end
         end
     end
 end)

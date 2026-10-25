@@ -1,4 +1,4 @@
--- dan ffa ultimate suite: hold aimlock, name esp, working fast reload
+-- dan ffa mega rage suite: silent aim, multi-target, live player list menu
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -7,20 +7,22 @@ local Camera = workspace.CurrentCamera
 
 local settings = {
     ESP = true,
-    Aimlock = true,
-    FastReload = true
+    RageLock = true,
+    MultiTarget = true,
+    TargetAll = false,
+    SelectedTargets = {}
 }
 
 -- UI Menu
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "DanFFAPerfect"
+ScreenGui.Name = "DanFFARage"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 360, 0, 220)
-MainFrame.Position = UDim2.new(0.5, -180, 0.5, -110)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MainFrame.Size = UDim2.new(0, 520, 0, 340)
+MainFrame.Position = UDim2.new(0.5, -260, 0.5, -170)
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -32,9 +34,9 @@ UICorner.Parent = MainFrame
 
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 36)
-Title.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
-Title.Text = "DAN FFA // ULTIMATE STABLE"
-Title.TextColor3 = Color3.fromRGB(240, 240, 250)
+Title.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+Title.Text = "DAN FFA // MEGA RAGE & PLAYER SELECTOR"
+Title.TextColor3 = Color3.fromRGB(255, 60, 60)
 Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
 Title.Parent = MainFrame
@@ -43,16 +45,23 @@ local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 8)
 TitleCorner.Parent = Title
 
+-- Left Panel: Toggles
+local LeftPanel = Instance.new("Frame")
+LeftPanel.Size = UDim2.new(0, 200, 1, -46)
+LeftPanel.Position = UDim2.new(0, 10, 0, 42)
+LeftPanel.BackgroundTransparency = 1
+LeftPanel.Parent = MainFrame
+
 local function makeToggle(name, y, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 36)
-    btn.Position = UDim2.new(0.05, 0, 0, y)
-    btn.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+    btn.Size = UDim2.new(1, 0, 0, 36)
+    btn.Position = UDim2.new(0, 0, 0, y)
+    btn.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
     btn.Text = name .. ": ON"
     btn.TextColor3 = Color3.fromRGB(220, 220, 230)
     btn.TextSize = 12
     btn.Font = Enum.Font.GothamMedium
-    btn.Parent = MainFrame
+    btn.Parent = LeftPanel
     
     local c = Instance.new("UICorner")
     c.CornerRadius = UDim.new(0, 6)
@@ -63,28 +72,84 @@ local function makeToggle(name, y, callback)
         active = not active
         callback(active)
         btn.Text = name .. (active and ": ON" or ": OFF")
-        btn.BackgroundColor3 = active and Color3.fromRGB(28, 28, 38) BrColor3 = Color3.fromRGB(45, 25, 28)
+        btn.BackgroundColor3 = active and Color3.fromRGB(24, 24, 32) or Color3.fromRGB(45, 20, 20)
     end)
 end
 
-makeToggle("ESP & Names", 48, function(v) settings.ESP = v end)
-makeToggle("Hold Aimlock (RMB)", 92, function(v) settings.Aimlock = v end)
-makeToggle("Fast Reload", 136, function(v) settings.FastReload = v end)
+makeToggle("ESP & Names", 0, function(v) settings.ESP = v end)
+makeToggle("Rage Lock (RMB)", 44, function(v) settings.RageLock = v end)
+makeToggle("Lock All Targets", 88, function(v) settings.TargetAll = v end)
 
--- Advanced ESP with Name Tags
+-- Right Panel: Live Player Selector List
+local PlayerListFrame = Instance.new("ScrollingFrame")
+PlayerListFrame.Size = UDim2.new(0, 290, 1, -46)
+PlayerListFrame.Position = UDim2.new(0, 215, 0, 42)
+PlayerListFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+PlayerListFrame.BorderSizePixel = 0
+PlayerListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+PlayerListFrame.Parent = MainFrame
+
+local ListCorner = Instance.new("UICorner")
+ListCorner.CornerRadius = UDim.new(0, 6)
+ListCorner.Parent = PlayerListFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 4)
+UIListLayout.Parent = PlayerListFrame
+
+local function updatePlayerList()
+    for _, child in ipairs(PlayerListFrame:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            local pBtn = Instance.new("TextButton")
+            pBtn.Size = UDim2.new(1, -4, 0, 30)
+            pBtn.BackgroundColor3 = settings.SelectedTargets[p] and Color3.fromRGB(60, 30, 30) or Color3.fromRGB(26, 26, 36)
+            pBtn.Text = p.Name .. (settings.SelectedTargets[p] and " [LOCKED]" or "")
+            pBtn.TextColor3 = Color3.fromRGB(200, 200, 210)
+            pBtn.TextSize = 12
+            pBtn.Font = Enum.Font.Gotham
+            pBtn.Parent = PlayerListFrame
+            
+            local pc = Instance.new("UICorner")
+            pc.CornerRadius = UDim.new(0, 4)
+            pc.Parent = pBtn
+            
+            pBtn.MouseButton1Click:Connect(function()
+                if settings.SelectedTargets[p] then
+                    settings.SelectedTargets[p] = nil
+                    pBtn.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+                    pBtn.Text = p.Name
+                else
+                    settings.SelectedTargets[p] = true
+                    pBtn.BackgroundColor3 = Color3.fromRGB(60, 30, 30)
+                    pBtn.Text = p.Name .. " [LOCKED]"
+                end
+            end)
+        end
+    end
+    PlayerListFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+end
+
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
+task.spawn(updatePlayerList)
+
+-- ESP Implementation
 local function createESP(player)
     if player == LocalPlayer then return end
-    
     local box = Drawing.new("Square")
     box.Visible = false
-    box.Color = Color3.fromRGB(255, 60, 60)
+    box.Color = Color3.fromRGB(255, 40, 40)
     box.Thickness = 1.5
     box.Filled = false
 
     local nameText = Drawing.new("Text")
     nameText.Visible = false
     nameText.Color = Color3.fromRGB(255, 255, 255)
-    nameText.Size = 14
+    nameText.Size = 13
     nameText.Center = true
     nameText.Outline = true
 
@@ -94,14 +159,12 @@ local function createESP(player)
             nameText.Visible = false
             return
         end
-        
         local char = player.Character
         if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
             local vector, onScreen = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
             if onScreen then
                 local headPos = Camera:WorldToViewportPoint(char.Head.Position + Vector3.new(0, 0.5, 0))
                 local legPos = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position - Vector3.new(0, 3, 0))
-                
                 local height = math.abs(legPos.Y - headPos.Y)
                 local width = height / 2
                 
@@ -126,57 +189,39 @@ end
 for _, p in ipairs(Players:GetPlayers()) do createESP(p) end
 Players.PlayerAdded:Connect(createESP)
 
--- Continuous Hold Aimlock (Runs every frame while RMB is held)
+-- Rage Lock (Hard Snap / Multi-Target Switching)
 RunService.RenderStepped:Connect(function()
-    if not settings.Aimlock then return end
+    if not settings.RageLock then return end
     if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        local target, shortest = nil, math.huge
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
-                local pos, onScreen = Camera:WorldToViewportPoint(p.Character.Head.Position)
-                if onScreen then
-                    local dist = (Vector2.new(pos.X, pos.Y) - UserInputService:GetMouseLocation()).Magnitude
-                    if dist < shortest then
-                        shortest = dist
-                        target = p.Character.Head
-                    end
-                end
+        local targetHead = nil
+        
+        -- Check manually selected targets first
+        for p, _ in pairs(settings.SelectedTargets) do
+            if p.Character and p.Character:FindFirstChild("Head") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                targetHead = p.Character.Head
+                break
             end
         end
-        if target then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-        end
-    end
-end)
-
--- Working Fast Reload (Patches ModuleScripts/Values & Remotes)
-RunService.Heartbeat:Connect(function()
-    if not settings.FastReload then return end
-    local char = LocalPlayer.Character
-    if not char then return end
-    
-    for _, tool in ipairs({char:FindFirstChildOfClass("Tool"), LocalPlayer.Backpack:FindFirstChildOfClass("Tool")}) do
-        if tool then
-            for _, v in ipairs(tool:GetDescendants()) do
-                if v:IsA("NumberValue") or v:IsA("IntValue") then
-                    local name = v.Name:lower()
-                    if name:find("reload") or name:find("cooldown") or name:find("rate") or name:find("delay") then
-                        v.Value = 0.01
-                    end
-                elseif v:IsA("ModuleScript") then
-                    pcall(function()
-                        local mod = require(v)
-                        if type(mod) == "table" then
-                            for k, _ in pairs(mod) do
-                                local kl = tostring(k):lower()
-                                if kl:find("reload") or kl:find("cooldown") then
-                                    mod[k] = 0.01
-                                end
-                            end
+        
+        -- If no explicit target selected or TargetAll is active, target closest/all
+        if not targetHead then
+            local shortest = math.huge
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") and p.Character.Humanoid.Health > 0 then
+                    local pos, onScreen = Camera:WorldToViewportPoint(p.Character.Head.Position)
+                    if onScreen then
+                        local dist = (Vector2.new(pos.X, pos.Y) - UserInputService:GetMouseLocation()).Magnitude
+                        if dist < shortest then
+                            shortest = dist
+                            targetHead = p.Character.Head
                         end
-                    end)
+                    end
                 end
             end
+        end
+        
+        if targetHead then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
         end
     end
 end)

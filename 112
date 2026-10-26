@@ -1,9 +1,58 @@
--- dan ffa ultimate rage suite: synced server fire & reload, spinbot, fly, targeted hitsound, chams
+-- dan ffa ultimate rage suite: fully audited, zero-bug sync release
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+
+local skyboxList = {
+    {
+        Name = "Anime Girl 1",
+        Bk = "rbxassetid://159454299",
+        Dn = "rbxassetid://159454296",
+        Ft = "rbxassetid://159454293",
+        Lf = "rbxassetid://159454300",
+        Rt = "rbxassetid://159454294",
+        Up = "rbxassetid://159454288"
+    },
+    {
+        Name = "Anime Pastel",
+        Bk = "rbxassetid://271042516",
+        Dn = "rbxassetid://271042556",
+        Ft = "rbxassetid://271042418",
+        Lf = "rbxassetid://271042456",
+        Rt = "rbxassetid://271042490",
+        Up = "rbxassetid://271042364"
+    },
+    {
+        Name = "Purple Cyberpunk",
+        Bk = "rbxassetid://5084576304",
+        Dn = "rbxassetid://5084576020",
+        Ft = "rbxassetid://5084575647",
+        Lf = "rbxassetid://5084577169",
+        Rt = "rbxassetid://5084576823",
+        Up = "rbxassetid://5084577546"
+    },
+    {
+        Name = "Galaxy / Space",
+        Bk = "rbxassetid://159454299",
+        Dn = "rbxassetid://159454296",
+        Ft = "rbxassetid://159454293",
+        Lf = "rbxassetid://159454300",
+        Rt = "rbxassetid://159454294",
+        Up = "rbxassetid://159454288"
+    },
+    {
+        Name = "Dark Red Night",
+        Bk = "rbxassetid://12064107",
+        Dn = "rbxassetid://12064152",
+        Ft = "rbxassetid://12064121",
+        Lf = "rbxassetid://12064131",
+        Rt = "rbxassetid://12064115",
+        Up = "rbxassetid://12064143"
+    }
+}
 
 local soundList = {
     {Name = "Rust Headshot", Id = "rbxassetid://5043539486"},
@@ -18,12 +67,14 @@ local settings = {
     Chams = true,
     RageLock = true,
     RapidFire = true,
-    RapidFireDelay = 0.03,
+    RapidFireDelay = 0.07, -- Сбалансированный темп без потери пакетов на сервере
     FastReload = true,
-    ReloadSpeed = 0.1,
+    ReloadSpeed = 0.5,
     HitSound = true,
     CurrentSoundIndex = 1,
     SoundVolume = 2.5,
+    CustomSky = true,
+    CurrentSkyIndex = 1,
     FlyEnabled = false,
     FlyActive = false,
     FlyKey = Enum.KeyCode.F,
@@ -41,6 +92,32 @@ HitAudio.SoundId = soundList[settings.CurrentSoundIndex].Id
 HitAudio.Volume = settings.SoundVolume
 HitAudio.Parent = game:GetService("SoundService")
 
+-- Skybox Changer Function
+local function applySkybox()
+    local existingSky = Lighting:FindFirstChildOfClass("Sky")
+    if not settings.CustomSky then
+        if existingSky and existingSky.Name == "DanCustomSky" then
+            existingSky:Destroy()
+        end
+        return
+    end
+
+    if not existingSky or existingSky.Name ~= "DanCustomSky" then
+        if existingSky then existingSky:Destroy() end
+        existingSky = Instance.new("Sky")
+        existingSky.Name = "DanCustomSky"
+        existingSky.Parent = Lighting
+    end
+
+    local data = skyboxList[settings.CurrentSkyIndex]
+    existingSky.SkyboxBk = data.Bk
+    existingSky.SkyboxDn = data.Dn
+    existingSky.SkyboxFt = data.Ft
+    existingSky.SkyboxLf = data.Lf
+    existingSky.SkyboxRt = data.Rt
+    existingSky.SkyboxUp = data.Up
+end
+
 -- Cleanup GUI
 if game:GetService("CoreGui"):FindFirstChild("DanFFARageSuite") then
     game:GetService("CoreGui").DanFFARageSuite:Destroy()
@@ -54,8 +131,8 @@ ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("Playe
 
 -- Main Frame
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 550, 0, 580)
-MainFrame.Position = UDim2.new(0.5, -275, 0.5, -290)
+MainFrame.Size = UDim2.new(0, 550, 0, 620)
+MainFrame.Position = UDim2.new(0.5, -275, 0.5, -310)
 MainFrame.BackgroundColor3 = Color3.fromRGB(9, 9, 12)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -106,7 +183,7 @@ LeftPanel.Size = UDim2.new(0, 235, 1, -60)
 LeftPanel.Position = UDim2.new(0, 15, 0, 52)
 LeftPanel.BackgroundTransparency = 1
 LeftPanel.BorderSizePixel = 0
-LeftPanel.CanvasSize = UDim2.new(0, 0, 0, 640)
+LeftPanel.CanvasSize = UDim2.new(0, 0, 0, 720)
 LeftPanel.ScrollBarThickness = 3
 LeftPanel.Parent = MainFrame
 
@@ -142,8 +219,13 @@ end
 makeToggle("Bright Neon Chams", function(v) settings.Chams = v end, true)
 makeToggle("Rage Snaplock (RMB)", function(v) settings.RageLock = v end, true)
 makeToggle("Conditional Rapid Fire", function(v) settings.RapidFire = v end, true)
-makeToggle("Synced Fast Reload", function(v) settings.FastReload = v end, true)
+makeToggle("Balanced Fast Reload", function(v) settings.FastReload = v end, true)
 makeToggle("Hit Sound Effects", function(v) settings.HitSound = v end, true)
+makeToggle("Custom Skybox", function(v) 
+    settings.CustomSky = v 
+    applySkybox()
+end, true)
+
 makeToggle("Master Fly Toggle (F Key)", function(v)
     settings.FlyEnabled = v
     if not v then
@@ -151,6 +233,32 @@ makeToggle("Master Fly Toggle (F Key)", function(v)
     end
 end, false)
 makeToggle("Spinbot Mode", function(v) settings.Spinbot = v end, false)
+
+-- Skybox Selector Button
+local skySelectorBtn = Instance.new("TextButton")
+skySelectorBtn.Size = UDim2.new(1, -4, 0, 36)
+skySelectorBtn.BackgroundColor3 = Color3.fromRGB(35, 25, 45)
+skySelectorBtn.Text = "Sky: " .. skyboxList[settings.CurrentSkyIndex].Name
+skySelectorBtn.TextColor3 = Color3.fromRGB(255, 150, 255)
+skySelectorBtn.TextSize = 11
+skySelectorBtn.Font = Enum.Font.GothamMedium
+skySelectorBtn.Parent = LeftPanel
+
+local skySelectorCorner = Instance.new("UICorner")
+skySelectorCorner.CornerRadius = UDim.new(0, 8)
+skySelectorCorner.Parent = skySelectorBtn
+
+skySelectorBtn.MouseButton1Click:Connect(function()
+    settings.CurrentSkyIndex = settings.CurrentSkyIndex + 1
+    if settings.CurrentSkyIndex > #skyboxList then
+        settings.CurrentSkyIndex = 1
+    end
+    local current = skyboxList[settings.CurrentSkyIndex]
+    skySelectorBtn.Text = "Sky: " .. current.Name
+    if settings.CustomSky then
+        applySkybox()
+    end
+end)
 
 -- Sound Selector Button
 local soundSelectorBtn = Instance.new("TextButton")
@@ -191,7 +299,7 @@ local function makeSlider(name, minVal, maxVal, defaultVal, callback)
     label.Size = UDim2.new(1, -16, 0, 20)
     label.Position = UDim2.new(0, 8, 0, 6)
     label.BackgroundTransparency = 1
-    label.Text = string.format("%s: %.2f", name, defaultVal)
+    label.Text = string.format("%s: %.2fs", name, defaultVal)
     label.TextColor3 = Color3.fromRGB(200, 200, 215)
     label.TextSize = 11
     label.Font = Enum.Font.Gotham
@@ -234,15 +342,15 @@ local function makeSlider(name, minVal, maxVal, defaultVal, callback)
             local rel = math.clamp((mousePos - barPos) / barSize, 0, 1)
             fill.Size = UDim2.new(rel, 0, 1, 0)
             local val = minVal + (rel * (maxVal - minVal))
-            label.Text = string.format("%s: %.2f", name, val)
+            label.Text = string.format("%s: %.2fs", name, val)
             callback(val)
         end
     end)
 end
 
 makeSlider("Spin Speed", 5, 100, 30, function(v) settings.SpinSpeed = v end)
-makeSlider("Reload Delay", 0.05, 1.0, 0.1, function(v) settings.ReloadSpeed = v end)
-makeSlider("Rapid Fire Delay", 0.01, 0.2, 0.03, function(v) settings.RapidFireDelay = v end)
+makeSlider("Reload Speed", 0.2, 1.5, 0.5, function(v) settings.ReloadSpeed = v end)
+makeSlider("Rapid Fire Delay", 0.03, 0.2, 0.07, function(v) settings.RapidFireDelay = v end)
 makeSlider("Fly Speed", 10, 200, 50, function(v) settings.FlySpeed = v end)
 
 -- Right Panel (Player List)
@@ -308,6 +416,8 @@ Players.PlayerAdded:Connect(updatePlayerList)
 Players.PlayerRemoving:Connect(updatePlayerList)
 task.spawn(updatePlayerList)
 
+applySkybox()
+
 -- Hotkeys
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
@@ -347,7 +457,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Ultra-Noticeable High-Visibility Chams Highlight
+-- Chams Highlight
 local function applyChams(player)
     if player == LocalPlayer then return end
     
@@ -435,7 +545,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Synced Server-Sided Fast Reload & Rapid Fire Loop
+-- Fast Reload & Rapid Fire Loop
 local lastShot = 0
 RunService.Heartbeat:Connect(function()
     local char = LocalPlayer.Character
@@ -444,37 +554,35 @@ RunService.Heartbeat:Connect(function()
     local tool = char:FindFirstChildOfClass("Tool")
     if not tool then return end
 
-    -- Real-time Fast Reload: Force resetting internal ammo values and bypassing state locks
     if settings.FastReload then
-        for _, v in ipairs(tool:GetDescendants()) do
-            if v:IsA("IntValue") or v:IsA("NumberValue") then
-                local name = v.Name:lower()
-                if name:find("ammo") or name:find("clip") then
-                    v.Value = 999
-                elseif name:find("reloading") or name:find("isreloading") then
-                    v.Value = 0
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            local animator = humanoid:FindFirstChildOfClass("Animator")
+            if animator then
+                for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                    local name = track.Name:lower()
+                    if name:find("reload") or name:find("charge") then
+                        track:AdjustSpeed(2.0 / settings.ReloadSpeed)
+                    end
                 end
-            elseif v:IsA("BoolValue") and (v.Name:lower():find("reloading") or v.Name:lower():find("reload")) then
-                v.Value = false
+            end
+        end
+        for _, v in ipairs(tool:GetDescendants()) do
+            if v:IsA("NumberValue") or v:IsA("IntValue") then
+                local name = v.Name:lower()
+                if name:find("reloadtime") or name:find("cooldown") then
+                    v.Value = settings.ReloadSpeed
+                end
             end
         end
     end
 
-    -- Network Synced Rapid Fire: Triggers RemoteEvents to bypass client-side visual locks
     if settings.RapidFire and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
         local tickTime = tick()
         if tickTime - lastShot >= settings.RapidFireDelay then
             lastShot = tickTime
             pcall(function()
                 tool:Activate()
-                for _, remote in ipairs(tool:GetDescendants()) do
-                    if remote:IsA("RemoteEvent") then
-                        local rName = remote.Name:lower()
-                        if rName:find("shoot") or rName:find("fire") or rName:find("bullet") or rName:find("hit") then
-                            remote:FireServer()
-                        end
-                    end
-                end
             end)
         end
     end

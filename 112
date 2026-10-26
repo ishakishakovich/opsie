@@ -1,4 +1,4 @@
--- dan ffa ultimate rage suite: hard-snap rage lock, customizable fly, chams, rapid fire, elite ui
+-- dan ffa ultimate rage suite: fast reload, hard-snap lock, fly, chams, rapid fire, elite ui
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -10,6 +10,8 @@ local settings = {
     RageLock = true,
     RapidFire = true,
     RapidFireDelay = 0.03,
+    FastReload = true,
+    ReloadSpeed = 0.5, -- Время перезарядки в секундах (0.5 сек)
     Fly = false,
     FlySpeed = 50,
     SelectedTargets = {}
@@ -28,8 +30,8 @@ ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("Playe
 
 -- Главное окно
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 540, 0, 440)
-MainFrame.Position = UDim2.new(0.5, -270, 0.5, -220)
+MainFrame.Size = UDim2.new(0, 540, 0, 480)
+MainFrame.Position = UDim2.new(0.5, -270, 0.5, -240)
 MainFrame.BackgroundColor3 = Color3.fromRGB(9, 9, 12)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -67,7 +69,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -20, 1, 0)
 Title.Position = UDim2.new(0, 16, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "DAN FFA // RAGE & FLY SUITE  [Right Shift]"
+Title.Text = "DAN FFA // RAGE, FLY & RELOAD SUITE  [Right Shift]"
 Title.TextColor3 = Color3.fromRGB(255, 80, 100)
 Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
@@ -80,7 +82,7 @@ LeftPanel.Size = UDim2.new(0, 225, 1, -60)
 LeftPanel.Position = UDim2.new(0, 15, 0, 52)
 LeftPanel.BackgroundTransparency = 1
 LeftPanel.BorderSizePixel = 0
-LeftPanel.CanvasSize = UDim2.new(0, 0, 0, 380)
+LeftPanel.CanvasSize = UDim2.new(0, 0, 0, 440)
 LeftPanel.ScrollBarThickness = 3
 LeftPanel.Parent = MainFrame
 
@@ -115,6 +117,7 @@ end
 makeToggle("Target Highlight (Chams)", function(v) settings.Chams = v end)
 makeToggle("Rage Snaplock (RMB)", function(v) settings.RageLock = v end)
 makeToggle("Conditional Rapid Fire", function(v) settings.RapidFire = v end)
+makeToggle("Fast Reload", function(v) settings.FastReload = v end)
 makeToggle("Smooth Fly", function(v) settings.Fly = v end)
 
 -- Функция создания слайдера
@@ -132,7 +135,7 @@ local function makeSlider(name, minVal, maxVal, defaultVal, callback)
     label.Size = UDim2.new(1, -16, 0, 20)
     label.Position = UDim2.new(0, 8, 0, 6)
     label.BackgroundTransparency = 1
-    label.Text = string.format("%s: %.1f", name, defaultVal)
+    label.Text = string.format("%s: %.2fs", name, defaultVal)
     label.TextColor3 = Color3.fromRGB(200, 200, 215)
     label.TextSize = 11
     label.Font = Enum.Font.Gotham
@@ -175,12 +178,13 @@ local function makeSlider(name, minVal, maxVal, defaultVal, callback)
             local rel = math.clamp((mousePos - barPos) / barSize, 0, 1)
             fill.Size = UDim2.new(rel, 0, 1, 0)
             local val = minVal + (rel * (maxVal - minVal))
-            label.Text = string.format("%s: %.1f", name, val)
+            label.Text = string.format("%s: %.2fs", name, val)
             callback(val)
         end
     end)
 end
 
+makeSlider("Reload Speed", 0.1, 2.0, 0.5, function(v) settings.ReloadSpeed = v end)
 makeSlider("Rapid Fire Delay", 0.01, 0.2, 0.03, function(v) settings.RapidFireDelay = v end)
 makeSlider("Fly Speed", 10, 200, 50, function(v) settings.FlySpeed = v end)
 
@@ -303,14 +307,48 @@ RunService.RenderStepped:Connect(function()
         end
         
         if targetHead then
-            -- Жесткий жесткий хард-снап
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
         end
     end
 end)
 
--- Аккуратный Smooth Fly
-local flyConnection
+-- Fast Reload Implementation (Хук параметров анимации и кулдауна оружия)
+RunService.Heartbeat:Connect(function()
+    if not settings.FastReload then return end
+    
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    -- Ускорение анимации перезарядки в Humanoid.Animator
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        local animator = humanoid:FindFirstChildOfClass("Animator")
+        if animator then
+            for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                local name = track.Name:lower()
+                if name:find("reload") or name:find("charge") then
+                    track:AdjustSpeed(2.5 / settings.ReloadSpeed)
+                end
+            end
+        end
+    end
+    
+    -- Модификация значение параметров перезарядки в оружии
+    for _, tool in ipairs({char:FindFirstChildOfClass("Tool"), LocalPlayer.Backpack:FindFirstChildOfClass("Tool")}) do
+        if tool then
+            for _, v in ipairs(tool:GetDescendants()) do
+                if v:IsA("NumberValue") or v:IsA("IntValue") then
+                    local name = v.Name:lower()
+                    if name:find("reload") or name:find("reloadtime") then
+                        v.Value = settings.ReloadSpeed
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Smooth Fly
 RunService.RenderStepped:Connect(function()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then return end
@@ -339,7 +377,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Умный Rapid Fire (Срабатывает при зажатой ЛКМ)
+-- Rapid Fire (Срабатывает при зажатой ЛКМ)
 local lastShot = 0
 RunService.Heartbeat:Connect(function()
     if not settings.RapidFire then return end

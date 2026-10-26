@@ -1,4 +1,4 @@
--- dan ffa ultimate rage suite: hit sounds, fast reload, fly (f), fast stop (x), rage lock, chams, rapid fire, elite ui
+-- dan ffa ultimate rage suite: spinbot + fly master toggle + fast reload + targeted hitsound + chams
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -23,22 +23,25 @@ local settings = {
     ReloadSpeed = 0.5,
     HitSound = true,
     CurrentSoundIndex = 1,
-    SoundVolume = 2.0,
-    Fly = false,
+    SoundVolume = 2.5,
+    FlyEnabled = false,
+    FlyActive = false,
     FlyKey = Enum.KeyCode.F,
     FastStopKey = Enum.KeyCode.X,
     FlySpeed = 50,
+    Spinbot = false,
+    SpinSpeed = 30,
     SelectedTargets = {}
 }
 
--- Инициализация объекта звука
+-- Sound Player
 local HitAudio = Instance.new("Sound")
 HitAudio.Name = "DanHitSoundEngine"
 HitAudio.SoundId = soundList[settings.CurrentSoundIndex].Id
 HitAudio.Volume = settings.SoundVolume
 HitAudio.Parent = game:GetService("SoundService")
 
--- Удаление старого интерфейса
+-- Cleanup previous UI
 if game:GetService("CoreGui"):FindFirstChild("DanFFARageSuite") then
     game:GetService("CoreGui").DanFFARageSuite:Destroy()
 end
@@ -51,8 +54,8 @@ ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("Playe
 
 -- Main Frame
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 550, 0, 540)
-MainFrame.Position = UDim2.new(0.5, -275, 0.5, -270)
+MainFrame.Size = UDim2.new(0, 550, 0, 580)
+MainFrame.Position = UDim2.new(0.5, -275, 0.5, -290)
 MainFrame.BackgroundColor3 = Color3.fromRGB(9, 9, 12)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -64,7 +67,7 @@ MainCorner.CornerRadius = UDim.new(0, 12)
 MainCorner.Parent = MainFrame
 
 local Shadow = Instance.new("UIStroke")
-Shadow.Color = Color3.fromRGB(45, 20, 30)
+Shadow.Color = Color3.fromRGB(255, 30, 70)
 Shadow.Thickness = 2
 Shadow.Parent = MainFrame
 
@@ -91,7 +94,7 @@ Title.Size = UDim2.new(1, -20, 1, 0)
 Title.Position = UDim2.new(0, 16, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "DAN FFA // RAGE SUITE [Fly: F | Stop: X | Shift: Menu]"
-Title.TextColor3 = Color3.fromRGB(255, 80, 100)
+Title.TextColor3 = Color3.fromRGB(255, 60, 90)
 Title.TextSize = 12
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -103,7 +106,7 @@ LeftPanel.Size = UDim2.new(0, 235, 1, -60)
 LeftPanel.Position = UDim2.new(0, 15, 0, 52)
 LeftPanel.BackgroundTransparency = 1
 LeftPanel.BorderSizePixel = 0
-LeftPanel.CanvasSize = UDim2.new(0, 0, 0, 520)
+LeftPanel.CanvasSize = UDim2.new(0, 0, 0, 640)
 LeftPanel.ScrollBarThickness = 3
 LeftPanel.Parent = MainFrame
 
@@ -115,7 +118,7 @@ UIListLayoutLeft.Parent = LeftPanel
 local function makeToggle(name, callback, initialState)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, -4, 0, 36)
-    local active = (initialState ~= nil) and initialState or true
+    local active = (initialState ~= nil) and initialState or false
     btn.BackgroundColor3 = active and Color3.fromRGB(18, 18, 24) or Color3.fromRGB(50, 20, 25)
     btn.Text = name .. (active and ": ON" or ": OFF")
     btn.TextColor3 = Color3.fromRGB(220, 220, 235)
@@ -136,15 +139,20 @@ local function makeToggle(name, callback, initialState)
     return btn
 end
 
-makeToggle("Target Highlight (Chams)", function(v) settings.Chams = v end, true)
+makeToggle("Bright Neon Chams", function(v) settings.Chams = v end, true)
 makeToggle("Rage Snaplock (RMB)", function(v) settings.RageLock = v end, true)
 makeToggle("Conditional Rapid Fire", function(v) settings.RapidFire = v end, true)
 makeToggle("Fast Reload", function(v) settings.FastReload = v end, true)
 makeToggle("Hit Sound Effects", function(v) settings.HitSound = v end, true)
+makeToggle("Master Fly Toggle (F Key)", function(v)
+    settings.FlyEnabled = v
+    if not v then
+        settings.FlyActive = false
+    end
+end, false)
+makeToggle("Spinbot Mode", function(v) settings.Spinbot = v end, false)
 
-local flyToggleBtn = makeToggle("Fly Mode (Key: F)", function(v) settings.Fly = v end, false)
-
--- Переключатель звуков удара
+-- Sound Selector Button
 local soundSelectorBtn = Instance.new("TextButton")
 soundSelectorBtn.Size = UDim2.new(1, -4, 0, 36)
 soundSelectorBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
@@ -183,7 +191,7 @@ local function makeSlider(name, minVal, maxVal, defaultVal, callback)
     label.Size = UDim2.new(1, -16, 0, 20)
     label.Position = UDim2.new(0, 8, 0, 6)
     label.BackgroundTransparency = 1
-    label.Text = string.format("%s: %.2fs", name, defaultVal)
+    label.Text = string.format("%s: %.1f", name, defaultVal)
     label.TextColor3 = Color3.fromRGB(200, 200, 215)
     label.TextSize = 11
     label.Font = Enum.Font.Gotham
@@ -203,7 +211,7 @@ local function makeSlider(name, minVal, maxVal, defaultVal, callback)
     
     local fill = Instance.new("Frame")
     fill.Size = UDim2.new((defaultVal - minVal) / (maxVal - minVal), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(255, 80, 100)
+    fill.BackgroundColor3 = Color3.fromRGB(255, 60, 90)
     fill.BorderSizePixel = 0
     fill.Parent = bar
     
@@ -226,12 +234,13 @@ local function makeSlider(name, minVal, maxVal, defaultVal, callback)
             local rel = math.clamp((mousePos - barPos) / barSize, 0, 1)
             fill.Size = UDim2.new(rel, 0, 1, 0)
             local val = minVal + (rel * (maxVal - minVal))
-            label.Text = string.format("%s: %.2fs", name, val)
+            label.Text = string.format("%s: %.1f", name, val)
             callback(val)
         end
     end)
 end
 
+makeSlider("Spin Speed", 5, 100, 30, function(v) settings.SpinSpeed = v end)
 makeSlider("Reload Speed", 0.1, 2.0, 0.5, function(v) settings.ReloadSpeed = v end)
 makeSlider("Rapid Fire Delay", 0.01, 0.2, 0.03, function(v) settings.RapidFireDelay = v end)
 makeSlider("Fly Speed", 10, 200, 50, function(v) settings.FlySpeed = v end)
@@ -266,7 +275,7 @@ local function updatePlayerList()
             pBtn.Size = UDim2.new(1, -6, 0, 34)
             
             local isSelected = settings.SelectedTargets[p.Name] == true
-            pBtn.BackgroundColor3 = isSelected and Color3.fromRGB(70, 20, 30) or Color3.fromRGB(16, 16, 22)
+            pBtn.BackgroundColor3 = isSelected and Color3.fromRGB(90, 20, 35) or Color3.fromRGB(16, 16, 22)
             pBtn.Text = p.Name .. (isSelected and " [RAGE LOCKED]" or "")
             pBtn.TextColor3 = isSelected and Color3.fromRGB(255, 120, 140) or Color3.fromRGB(200, 200, 215)
             pBtn.TextSize = 11
@@ -285,7 +294,7 @@ local function updatePlayerList()
                     pBtn.TextColor3 = Color3.fromRGB(200, 200, 215)
                 else
                     settings.SelectedTargets[p.Name] = true
-                    pBtn.BackgroundColor3 = Color3.fromRGB(70, 20, 30)
+                    pBtn.BackgroundColor3 = Color3.fromRGB(90, 20, 35)
                     pBtn.Text = p.Name .. " [RAGE LOCKED]"
                     pBtn.TextColor3 = Color3.fromRGB(255, 120, 140)
                 end
@@ -307,10 +316,9 @@ UserInputService.InputBegan:Connect(function(input, gpe)
         MainFrame.Visible = not MainFrame.Visible
     end
     
-    if input.KeyCode == settings.FlyKey then
-        settings.Fly = not settings.Fly
-        flyToggleBtn.Text = "Fly Mode (Key: F): " .. (settings.Fly and "ON" or "OFF")
-        flyToggleBtn.BackgroundColor3 = settings.Fly and Color3.fromRGB(18, 18, 24) or Color3.fromRGB(50, 20, 25)
+    -- Fly only toggles with F if Master Fly Switch is ON in UI
+    if input.KeyCode == settings.FlyKey and settings.FlyEnabled then
+        settings.FlyActive = not settings.FlyActive
     end
     
     if input.KeyCode == settings.FastStopKey then
@@ -327,7 +335,20 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     end
 end)
 
--- Chams Highlight
+-- Spinbot Loop
+local spinAngle = 0
+RunService.RenderStepped:Connect(function()
+    if not settings.Spinbot then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if root then
+        spinAngle = (spinAngle + settings.SpinSpeed) % 360
+        root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, math.rad(spinAngle), 0)
+    end
+end)
+
+-- Ultra-Noticeable High-Visibility Chams Highlight
 local function applyChams(player)
     if player == LocalPlayer then return end
     
@@ -344,9 +365,9 @@ local function applyChams(player)
                 highlight.Adornee = char
                 highlight.Parent = char
             end
-            highlight.FillColor = Color3.fromRGB(255, 50, 70)
+            highlight.FillColor = Color3.fromRGB(255, 0, 60)
             highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-            highlight.FillTransparency = 0.35
+            highlight.FillTransparency = 0.1
             highlight.OutlineTransparency = 0
             highlight.Enabled = true
         else
@@ -360,7 +381,7 @@ end
 for _, p in ipairs(Players:GetPlayers()) do applyChams(p) end
 Players.PlayerAdded:Connect(applyChams)
 
--- Hit Sound Listener (Детектор изменения здоровья у врагов)
+-- Targeted Hit Sound Listener
 local lastHealths = {}
 
 local function setupHealthListener(player)
@@ -374,7 +395,10 @@ local function setupHealthListener(player)
             hum.HealthChanged:Connect(function(newHealth)
                 local oldHealth = lastHealths[player.Name] or hum.MaxHealth
                 if newHealth < oldHealth then
-                    if settings.HitSound then
+                    local isLMBPressed = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+                    local isSelectedTarget = settings.SelectedTargets[player.Name] == true
+                    
+                    if settings.HitSound and isSelectedTarget and isLMBPressed then
                         HitAudio.TimePosition = 0
                         HitAudio:Play()
                     end
@@ -446,14 +470,14 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Smooth Fly Engine
+-- Smooth Fly Engine (Strictly controlled by Master Fly Toggle)
 RunService.RenderStepped:Connect(function()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then return end
     local rootPart = char.HumanoidRootPart
     local humanoid = char.Humanoid
 
-    if settings.Fly then
+    if settings.FlyEnabled and settings.FlyActive then
         humanoid.PlatformStand = true
         local camCFrame = Camera.CFrame
         local moveVector = Vector3.new()

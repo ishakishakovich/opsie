@@ -1,4 +1,4 @@
--- 555.WAVE // ULTIMATE RAGE SUITE FOR DAN FFA
+-- 555.WAVE // FIXED UI & SMART MULTI-LOCK FOR DAN FFA
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -38,23 +38,29 @@ local settings = {
     SelectedTargets = {}
 }
 
--- Fixed Hit Sound Engine
+-- Hit Sound Engine
 local HitAudio = Instance.new("Sound")
 HitAudio.Name = "WaveHitSound"
 HitAudio.SoundId = soundList[settings.CurrentSoundIndex].Id
 HitAudio.Volume = settings.SoundVolume
 HitAudio.Parent = game:GetService("SoundService")
 
--- Cleanup old GUI
-if game:GetService("CoreGui"):FindFirstChild("Burgerwave555") then
-    game:GetService("CoreGui").Burgerwave555:Destroy()
-end
+-- Safe GUI Cleanup
+pcall(function()
+    if LocalPlayer.PlayerGui:FindFirstChild("Burgerwave555") then
+        LocalPlayer.PlayerGui.Burgerwave555:Destroy()
+    end
+    if game:GetService("CoreGui"):FindFirstChild("Burgerwave555") then
+        game:GetService("CoreGui").Burgerwave555:Destroy()
+    end
+end)
 
--- UI Container
+-- UI Container (Safe PlayerGui Root)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Burgerwave555"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 -- Main Frame (Burgerwave Style: Dark Burgundy & Gold/Neon Accent)
 local MainFrame = Instance.new("Frame")
@@ -64,6 +70,7 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(15, 12, 16)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
+MainFrame.Visible = true -- Принудительно видимый при запуске
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
@@ -97,9 +104,9 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -20, 1, 0)
 Title.Position = UDim2.new(0, 16, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "555.WAVE // BURGERWAVE EDITION [Fly: F | Stop: X | Spin: V | Menu: Shift]"
+Title.Text = "555.WAVE // SMART MULTI-LOCK [Fly: F | Stop: X | Spin: V | Menu: Shift]"
 Title.TextColor3 = Color3.fromRGB(255, 140, 70)
-Title.TextSize = 11
+Title.TextSize = 10
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TopBar
@@ -124,7 +131,7 @@ local function makeToggle(name, callback, initialState)
     btn.Size = UDim2.new(1, -4, 0, 36)
     local active = (initialState ~= nil) and initialState or false
     btn.BackgroundColor3 = active and Color3.fromRGB(35, 20, 25) or Color3.fromRGB(20, 18, 24)
-    btn.Text = name .. (active. and ": ON" or ": OFF")
+    btn.Text = name .. (active and ": ON" or ": OFF")
     btn.TextColor3 = active and Color3.fromRGB(255, 150, 100) or Color3.fromRGB(180, 180, 200)
     btn.TextSize = 11
     btn.Font = Enum.Font.GothamMedium
@@ -145,7 +152,7 @@ local function makeToggle(name, callback, initialState)
 end
 
 makeToggle("Rainbow Chams", function(v) settings.RainbowChams = v end, true)
-makeToggle("Rage Snaplock (RMB)", function(v) settings.RageLock = v end, true)
+makeToggle("Smart Multi-Snaplock (RMB)", function(v) settings.RageLock = v end, true)
 makeToggle("Hit Sound Effects", function(v) settings.HitSound = v end, true)
 makeToggle("Auto-Clicker (Fast Shoot)", function(v) settings.AutoClicker = v end, false)
 makeToggle("Hitbox Expander (Big Heads)", function(v) settings.BigHeads = v end, false)
@@ -385,7 +392,7 @@ RunService.RenderStepped:Connect(function()
             -- Big Heads (Hitbox Expander)
             local head = char:FindFirstChild("Head")
             if head then
-                if settings.BigHeads and settings.SelectedTargets[p.Name] then
+                if settings.BigHeads and settings.SelectedTargets[p.Name] and hum and hum.Health > 0 then
                     head.Size = Vector3.new(3.5, 3.5, 3.5)
                     head.CanCollide = false
                 else
@@ -418,7 +425,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Fixed Hit Sound Listener (Reliable Damage Detection)
+-- Fixed Hit Sound Listener
 local trackedHealths = {}
 
 local function setupHitSoundListener(player)
@@ -430,7 +437,7 @@ local function setupHitSoundListener(player)
             hum.HealthChanged:Connect(function(newHealth)
                 local oldHealth = trackedHealths[player.Name] or hum.MaxHealth
                 if newHealth < oldHealth then
-                    if settings.HitSound and settings.SelectedTargets[player.Name] then
+                    if settings.HitSound and settings.SelectedTargets[player.Name] and newHealth > 0 then
                         HitAudio.TimePosition = 0
                         HitAudio:Play()
                     end
@@ -460,25 +467,37 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Rage Snaplock & Camera FOV Lock Loop
+-- Smart Multi-Target Snaplock (Ignores corpses, picks closest live target from selection)
 RunService.RenderStepped:Connect(function()
     Camera.FieldOfView = settings.FOVValue
 
     if not settings.RageLock then return end
     if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        local targetHead = nil
-        
+        local bestHead = nil
+        local shortestDistance = math.huge
+        local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
         for _, p in ipairs(Players:GetPlayers()) do
             if settings.SelectedTargets[p.Name] then
-                if p.Character and p.Character:FindFirstChild("Head") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-                    targetHead = p.Character.Head
-                    break
+                local char = p.Character
+                if char then
+                    local hum = char:FindFirstChild("Humanoid")
+                    local head = char:FindFirstChild("Head")
+                    if hum and head and hum.Health > 0 then
+                        if localRoot then
+                            local dist = (localRoot.Position - head.Position).Magnitude
+                            if dist < shortestDistance then
+                                shortestDistance = dist
+                                bestHead = head
+                            end
+                        end
+                    end
                 end
             end
         end
-        
-        if targetHead then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
+
+        if bestHead then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, bestHead.Position)
         end
     end
 end)

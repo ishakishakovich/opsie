@@ -1,4 +1,4 @@
--- dan ffa ultimate suite: rage snaplock, chams, hitsound, fly (f), fast stop (x), spinbot (v), fake death, fov
+-- dan ffa ultimate suite: display names in target list, rage lock, chams, hitsound, fly (f), fast stop (x), spinbot (v), fake death, fov
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -249,7 +249,7 @@ end)
 makeSlider("Spin Speed", 5, 100, 30, function(v) settings.SpinSpeed = v end)
 makeSlider("Fly Speed", 10, 200, 50, function(v) settings.FlySpeed = v end)
 
--- Right Panel (Player List)
+-- Right Panel (Player List with Display Names)
 local PlayerListFrame = Instance.new("ScrollingFrame")
 PlayerListFrame.Size = UDim2.new(0, 275, 1, -60)
 PlayerListFrame.Position = UDim2.new(0, 260, 0, 52)
@@ -278,9 +278,16 @@ local function updatePlayerList()
             local pBtn = Instance.new("TextButton")
             pBtn.Size = UDim2.new(1, -6, 0, 34)
             
+            local displayName = p.DisplayName
             local isSelected = settings.SelectedTargets[p.Name] == true
+            
+            local textFormat = string.format("%s (@%s)", displayName, p.Name)
+            if isSelected then
+                textFormat = displayName .. " [RAGE LOCKED]"
+            end
+            
             pBtn.BackgroundColor3 = isSelected and Color3.fromRGB(90, 20, 35) or Color3.fromRGB(16, 16, 22)
-            pBtn.Text = p.Name .. (isSelected and " [RAGE LOCKED]" or "")
+            pBtn.Text = textFormat
             pBtn.TextColor3 = isSelected and Color3.fromRGB(255, 120, 140) or Color3.fromRGB(200, 200, 215)
             pBtn.TextSize = 11
             pBtn.Font = Enum.Font.Gotham
@@ -294,12 +301,12 @@ local function updatePlayerList()
                 if settings.SelectedTargets[p.Name] then
                     settings.SelectedTargets[p.Name] = nil
                     pBtn.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
-                    pBtn.Text = p.Name
+                    pBtn.Text = string.format("%s (@%s)", p.DisplayName, p.Name)
                     pBtn.TextColor3 = Color3.fromRGB(200, 200, 215)
                 else
                     settings.SelectedTargets[p.Name] = true
                     pBtn.BackgroundColor3 = Color3.fromRGB(90, 20, 35)
-                    pBtn.Text = p.Name .. " [RAGE LOCKED]"
+                    pBtn.Text = p.DisplayName .. " [RAGE LOCKED]"
                     pBtn.TextColor3 = Color3.fromRGB(255, 120, 140)
                 end
             end)

@@ -1,4 +1,4 @@
--- dan ffa ultimate rage suite: spinbot + fly master toggle + fast reload + targeted hitsound + chams
+-- dan ffa ultimate rage suite: synced server fire & reload, spinbot, fly, targeted hitsound, chams
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -20,7 +20,7 @@ local settings = {
     RapidFire = true,
     RapidFireDelay = 0.03,
     FastReload = true,
-    ReloadSpeed = 0.5,
+    ReloadSpeed = 0.1,
     HitSound = true,
     CurrentSoundIndex = 1,
     SoundVolume = 2.5,
@@ -34,14 +34,14 @@ local settings = {
     SelectedTargets = {}
 }
 
--- Sound Player
+-- Audio Setup
 local HitAudio = Instance.new("Sound")
 HitAudio.Name = "DanHitSoundEngine"
 HitAudio.SoundId = soundList[settings.CurrentSoundIndex].Id
 HitAudio.Volume = settings.SoundVolume
 HitAudio.Parent = game:GetService("SoundService")
 
--- Cleanup previous UI
+-- Cleanup GUI
 if game:GetService("CoreGui"):FindFirstChild("DanFFARageSuite") then
     game:GetService("CoreGui").DanFFARageSuite:Destroy()
 end
@@ -142,7 +142,7 @@ end
 makeToggle("Bright Neon Chams", function(v) settings.Chams = v end, true)
 makeToggle("Rage Snaplock (RMB)", function(v) settings.RageLock = v end, true)
 makeToggle("Conditional Rapid Fire", function(v) settings.RapidFire = v end, true)
-makeToggle("Fast Reload", function(v) settings.FastReload = v end, true)
+makeToggle("Synced Fast Reload", function(v) settings.FastReload = v end, true)
 makeToggle("Hit Sound Effects", function(v) settings.HitSound = v end, true)
 makeToggle("Master Fly Toggle (F Key)", function(v)
     settings.FlyEnabled = v
@@ -191,7 +191,7 @@ local function makeSlider(name, minVal, maxVal, defaultVal, callback)
     label.Size = UDim2.new(1, -16, 0, 20)
     label.Position = UDim2.new(0, 8, 0, 6)
     label.BackgroundTransparency = 1
-    label.Text = string.format("%s: %.1f", name, defaultVal)
+    label.Text = string.format("%s: %.2f", name, defaultVal)
     label.TextColor3 = Color3.fromRGB(200, 200, 215)
     label.TextSize = 11
     label.Font = Enum.Font.Gotham
@@ -234,14 +234,14 @@ local function makeSlider(name, minVal, maxVal, defaultVal, callback)
             local rel = math.clamp((mousePos - barPos) / barSize, 0, 1)
             fill.Size = UDim2.new(rel, 0, 1, 0)
             local val = minVal + (rel * (maxVal - minVal))
-            label.Text = string.format("%s: %.1f", name, val)
+            label.Text = string.format("%s: %.2f", name, val)
             callback(val)
         end
     end)
 end
 
 makeSlider("Spin Speed", 5, 100, 30, function(v) settings.SpinSpeed = v end)
-makeSlider("Reload Speed", 0.1, 2.0, 0.5, function(v) settings.ReloadSpeed = v end)
+makeSlider("Reload Delay", 0.05, 1.0, 0.1, function(v) settings.ReloadSpeed = v end)
 makeSlider("Rapid Fire Delay", 0.01, 0.2, 0.03, function(v) settings.RapidFireDelay = v end)
 makeSlider("Fly Speed", 10, 200, 50, function(v) settings.FlySpeed = v end)
 
@@ -316,7 +316,6 @@ UserInputService.InputBegan:Connect(function(input, gpe)
         MainFrame.Visible = not MainFrame.Visible
     end
     
-    -- Fly only toggles with F if Master Fly Switch is ON in UI
     if input.KeyCode == settings.FlyKey and settings.FlyEnabled then
         settings.FlyActive = not settings.FlyActive
     end
@@ -436,41 +435,52 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Fast Reload
+-- Synced Server-Sided Fast Reload & Rapid Fire Loop
+local lastShot = 0
 RunService.Heartbeat:Connect(function()
-    if not settings.FastReload then return end
-    
     local char = LocalPlayer.Character
     if not char then return end
     
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        local animator = humanoid:FindFirstChildOfClass("Animator")
-        if animator then
-            for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-                local name = track.Name:lower()
-                if name:find("reload") or name:find("charge") then
-                    track:AdjustSpeed(2.5 / settings.ReloadSpeed)
+    local tool = char:FindFirstChildOfClass("Tool")
+    if not tool then return end
+
+    -- Real-time Fast Reload: Force resetting internal ammo values and bypassing state locks
+    if settings.FastReload then
+        for _, v in ipairs(tool:GetDescendants()) do
+            if v:IsA("IntValue") or v:IsA("NumberValue") then
+                local name = v.Name:lower()
+                if name:find("ammo") or name:find("clip") then
+                    v.Value = 999
+                elseif name:find("reloading") or name:find("isreloading") then
+                    v.Value = 0
                 end
+            elseif v:IsA("BoolValue") and (v.Name:lower():find("reloading") or v.Name:lower():find("reload")) then
+                v.Value = false
             end
         end
     end
-    
-    for _, tool in ipairs({char:FindFirstChildOfClass("Tool"), LocalPlayer.Backpack:FindFirstChildOfClass("Tool")}) do
-        if tool then
-            for _, v in ipairs(tool:GetDescendants()) do
-                if v:IsA("NumberValue") or v:IsA("IntValue") then
-                    local name = v.Name:lower()
-                    if name:find("reload") or name:find("reloadtime") then
-                        v.Value = settings.ReloadSpeed
+
+    -- Network Synced Rapid Fire: Triggers RemoteEvents to bypass client-side visual locks
+    if settings.RapidFire and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+        local tickTime = tick()
+        if tickTime - lastShot >= settings.RapidFireDelay then
+            lastShot = tickTime
+            pcall(function()
+                tool:Activate()
+                for _, remote in ipairs(tool:GetDescendants()) do
+                    if remote:IsA("RemoteEvent") then
+                        local rName = remote.Name:lower()
+                        if rName:find("shoot") or rName:find("fire") or rName:find("bullet") or rName:find("hit") then
+                            remote:FireServer()
+                        end
                     end
                 end
-            end
+            end)
         end
     end
 end)
 
--- Smooth Fly Engine (Strictly controlled by Master Fly Toggle)
+-- Smooth Fly Engine
 RunService.RenderStepped:Connect(function()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then return end
@@ -496,27 +506,5 @@ RunService.RenderStepped:Connect(function()
         end
     else
         humanoid.PlatformStand = false
-    end
-end)
-
--- Rapid Fire
-local lastShot = 0
-RunService.Heartbeat:Connect(function()
-    if not settings.RapidFire then return end
-    
-    if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-        local tickTime = tick()
-        if tickTime - lastShot >= settings.RapidFireDelay then
-            lastShot = tickTime
-            local char = LocalPlayer.Character
-            if not char then return end
-            
-            local tool = char:FindFirstChildOfClass("Tool")
-            if tool then
-                pcall(function()
-                    tool:Activate()
-                end)
-            end
-        end
     end
 end)

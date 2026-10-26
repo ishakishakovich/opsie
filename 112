@@ -1,9 +1,18 @@
--- dan ffa ultimate rage suite: fast reload, hard-snap lock, fly, chams, rapid fire, elite ui
+-- dan ffa ultimate rage suite: hit sounds, fast reload, fly (f), fast stop (x), rage lock, chams, rapid fire, elite ui
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+
+local soundList = {
+    {Name = "Rust Headshot", Id = "rbxassetid://5043539486"},
+    {Name = "CS:GO Bell", Id = "rbxassetid://4748171097"},
+    {Name = "Hitmarker Classic", Id = "rbxassetid://160432334"},
+    {Name = "COD Hitmarker", Id = "rbxassetid://6909902008"},
+    {Name = "Bubble Pop", Id = "rbxassetid://6618886836"},
+    {Name = "Minecraft Hit", Id = "rbxassetid://4018616850"}
+}
 
 local settings = {
     Chams = true,
@@ -11,13 +20,25 @@ local settings = {
     RapidFire = true,
     RapidFireDelay = 0.03,
     FastReload = true,
-    ReloadSpeed = 0.5, -- Время перезарядки в секундах (0.5 сек)
+    ReloadSpeed = 0.5,
+    HitSound = true,
+    CurrentSoundIndex = 1,
+    SoundVolume = 2.0,
     Fly = false,
+    FlyKey = Enum.KeyCode.F,
+    FastStopKey = Enum.KeyCode.X,
     FlySpeed = 50,
     SelectedTargets = {}
 }
 
--- Удаляем старый интерфейс если он есть
+-- Инициализация объекта звука
+local HitAudio = Instance.new("Sound")
+HitAudio.Name = "DanHitSoundEngine"
+HitAudio.SoundId = soundList[settings.CurrentSoundIndex].Id
+HitAudio.Volume = settings.SoundVolume
+HitAudio.Parent = game:GetService("SoundService")
+
+-- Удаление старого интерфейса
 if game:GetService("CoreGui"):FindFirstChild("DanFFARageSuite") then
     game:GetService("CoreGui").DanFFARageSuite:Destroy()
 end
@@ -28,10 +49,10 @@ ScreenGui.Name = "DanFFARageSuite"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
--- Главное окно
+-- Main Frame
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 540, 0, 480)
-MainFrame.Position = UDim2.new(0.5, -270, 0.5, -240)
+MainFrame.Size = UDim2.new(0, 550, 0, 540)
+MainFrame.Position = UDim2.new(0.5, -275, 0.5, -270)
 MainFrame.BackgroundColor3 = Color3.fromRGB(9, 9, 12)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -47,7 +68,7 @@ Shadow.Color = Color3.fromRGB(45, 20, 30)
 Shadow.Thickness = 2
 Shadow.Parent = MainFrame
 
--- Шапка
+-- Header
 local TopBar = Instance.new("Frame")
 TopBar.Size = UDim2.new(1, 0, 0, 45)
 TopBar.BackgroundColor3 = Color3.fromRGB(16, 14, 20)
@@ -69,20 +90,20 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -20, 1, 0)
 Title.Position = UDim2.new(0, 16, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "DAN FFA // RAGE, FLY & RELOAD SUITE  [Right Shift]"
+Title.Text = "DAN FFA // RAGE SUITE [Fly: F | Stop: X | Shift: Menu]"
 Title.TextColor3 = Color3.fromRGB(255, 80, 100)
-Title.TextSize = 13
+Title.TextSize = 12
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TopBar
 
--- Левая панель (Функции и Слайдеры)
+-- Left Panel
 local LeftPanel = Instance.new("ScrollingFrame")
-LeftPanel.Size = UDim2.new(0, 225, 1, -60)
+LeftPanel.Size = UDim2.new(0, 235, 1, -60)
 LeftPanel.Position = UDim2.new(0, 15, 0, 52)
 LeftPanel.BackgroundTransparency = 1
 LeftPanel.BorderSizePixel = 0
-LeftPanel.CanvasSize = UDim2.new(0, 0, 0, 440)
+LeftPanel.CanvasSize = UDim2.new(0, 0, 0, 520)
 LeftPanel.ScrollBarThickness = 3
 LeftPanel.Parent = MainFrame
 
@@ -91,13 +112,14 @@ UIListLayoutLeft.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayoutLeft.Padding = UDim.new(0, 8)
 UIListLayoutLeft.Parent = LeftPanel
 
-local function makeToggle(name, callback)
+local function makeToggle(name, callback, initialState)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -4, 0, 38)
-    btn.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-    btn.Text = name .. ": ON"
+    btn.Size = UDim2.new(1, -4, 0, 36)
+    local active = (initialState ~= nil) and initialState or true
+    btn.BackgroundColor3 = active and Color3.fromRGB(18, 18, 24) or Color3.fromRGB(50, 20, 25)
+    btn.Text = name .. (active and ": ON" or ": OFF")
     btn.TextColor3 = Color3.fromRGB(220, 220, 235)
-    btn.TextSize = 12
+    btn.TextSize = 11
     btn.Font = Enum.Font.GothamMedium
     btn.Parent = LeftPanel
     
@@ -105,22 +127,48 @@ local function makeToggle(name, callback)
     c.CornerRadius = UDim.new(0, 8)
     c.Parent = btn
     
-    local active = true
     btn.MouseButton1Click:Connect(function()
         active = not active
         callback(active)
         btn.Text = name .. (active and ": ON" or ": OFF")
         btn.BackgroundColor3 = active and Color3.fromRGB(18, 18, 24) or Color3.fromRGB(50, 20, 25)
     end)
+    return btn
 end
 
-makeToggle("Target Highlight (Chams)", function(v) settings.Chams = v end)
-makeToggle("Rage Snaplock (RMB)", function(v) settings.RageLock = v end)
-makeToggle("Conditional Rapid Fire", function(v) settings.RapidFire = v end)
-makeToggle("Fast Reload", function(v) settings.FastReload = v end)
-makeToggle("Smooth Fly", function(v) settings.Fly = v end)
+makeToggle("Target Highlight (Chams)", function(v) settings.Chams = v end, true)
+makeToggle("Rage Snaplock (RMB)", function(v) settings.RageLock = v end, true)
+makeToggle("Conditional Rapid Fire", function(v) settings.RapidFire = v end, true)
+makeToggle("Fast Reload", function(v) settings.FastReload = v end, true)
+makeToggle("Hit Sound Effects", function(v) settings.HitSound = v end, true)
 
--- Функция создания слайдера
+local flyToggleBtn = makeToggle("Fly Mode (Key: F)", function(v) settings.Fly = v end, false)
+
+-- Переключатель звуков удара
+local soundSelectorBtn = Instance.new("TextButton")
+soundSelectorBtn.Size = UDim2.new(1, -4, 0, 36)
+soundSelectorBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+soundSelectorBtn.Text = "Sound: " .. soundList[settings.CurrentSoundIndex].Name
+soundSelectorBtn.TextColor3 = Color3.fromRGB(255, 200, 100)
+soundSelectorBtn.TextSize = 11
+soundSelectorBtn.Font = Enum.Font.GothamMedium
+soundSelectorBtn.Parent = LeftPanel
+
+local soundSelectorCorner = Instance.new("UICorner")
+soundSelectorCorner.CornerRadius = UDim.new(0, 8)
+soundSelectorCorner.Parent = soundSelectorBtn
+
+soundSelectorBtn.MouseButton1Click:Connect(function()
+    settings.CurrentSoundIndex = settings.CurrentSoundIndex + 1
+    if settings.CurrentSoundIndex > #soundList then
+        settings.CurrentSoundIndex = 1
+    end
+    local current = soundList[settings.CurrentSoundIndex]
+    soundSelectorBtn.Text = "Sound: " .. current.Name
+    HitAudio.SoundId = current.Id
+    HitAudio:Play()
+end)
+
 local function makeSlider(name, minVal, maxVal, defaultVal, callback)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1, -4, 0, 50)
@@ -188,10 +236,10 @@ makeSlider("Reload Speed", 0.1, 2.0, 0.5, function(v) settings.ReloadSpeed = v e
 makeSlider("Rapid Fire Delay", 0.01, 0.2, 0.03, function(v) settings.RapidFireDelay = v end)
 makeSlider("Fly Speed", 10, 200, 50, function(v) settings.FlySpeed = v end)
 
--- Правая панель (Список игроков)
+-- Right Panel (Player List)
 local PlayerListFrame = Instance.new("ScrollingFrame")
 PlayerListFrame.Size = UDim2.new(0, 275, 1, -60)
-PlayerListFrame.Position = UDim2.new(0, 250, 0, 52)
+PlayerListFrame.Position = UDim2.new(0, 260, 0, 52)
 PlayerListFrame.BackgroundColor3 = Color3.fromRGB(7, 7, 10)
 PlayerListFrame.BorderSizePixel = 0
 PlayerListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -251,14 +299,35 @@ Players.PlayerAdded:Connect(updatePlayerList)
 Players.PlayerRemoving:Connect(updatePlayerList)
 task.spawn(updatePlayerList)
 
--- Переключение видимости по Правому Шифту
-UserInputService.InputBegan:Connect(function(input)
+-- Hotkeys
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    
     if input.KeyCode == Enum.KeyCode.RightShift then
         MainFrame.Visible = not MainFrame.Visible
     end
+    
+    if input.KeyCode == settings.FlyKey then
+        settings.Fly = not settings.Fly
+        flyToggleBtn.Text = "Fly Mode (Key: F): " .. (settings.Fly and "ON" or "OFF")
+        flyToggleBtn.BackgroundColor3 = settings.Fly and Color3.fromRGB(18, 18, 24) or Color3.fromRGB(50, 20, 25)
+    end
+    
+    if input.KeyCode == settings.FastStopKey then
+        local char = LocalPlayer.Character
+        if char then
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if root then
+                root.Velocity = Vector3.new(0, 0, 0)
+                root.RotVelocity = Vector3.new(0, 0, 0)
+                root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            end
+        end
+    end
 end)
 
--- Подсветка скина (Chams Highlight)
+-- Chams Highlight
 local function applyChams(player)
     if player == LocalPlayer then return end
     
@@ -291,7 +360,38 @@ end
 for _, p in ipairs(Players:GetPlayers()) do applyChams(p) end
 Players.PlayerAdded:Connect(applyChams)
 
--- ЛЮТЫЙ RAGE AIMLOCK (Мгновенный snap без задержек в голову)
+-- Hit Sound Listener (Детектор изменения здоровья у врагов)
+local lastHealths = {}
+
+local function setupHealthListener(player)
+    if player == LocalPlayer then return end
+    
+    local function connectChar(char)
+        if not char then return end
+        local hum = char:WaitForChild("Humanoid", 5)
+        if hum then
+            lastHealths[player.Name] = hum.Health
+            hum.HealthChanged:Connect(function(newHealth)
+                local oldHealth = lastHealths[player.Name] or hum.MaxHealth
+                if newHealth < oldHealth then
+                    if settings.HitSound then
+                        HitAudio.TimePosition = 0
+                        HitAudio:Play()
+                    end
+                end
+                lastHealths[player.Name] = newHealth
+            end)
+        end
+    end
+    
+    if player.Character then connectChar(player.Character) end
+    player.CharacterAdded:Connect(connectChar)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do setupHealthListener(p) end
+Players.PlayerAdded:Connect(setupHealthListener)
+
+-- Rage Snaplock
 RunService.RenderStepped:Connect(function()
     if not settings.RageLock then return end
     if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
@@ -312,14 +412,13 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Fast Reload Implementation (Хук параметров анимации и кулдауна оружия)
+-- Fast Reload
 RunService.Heartbeat:Connect(function()
     if not settings.FastReload then return end
     
     local char = LocalPlayer.Character
     if not char then return end
     
-    -- Ускорение анимации перезарядки в Humanoid.Animator
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if humanoid then
         local animator = humanoid:FindFirstChildOfClass("Animator")
@@ -333,7 +432,6 @@ RunService.Heartbeat:Connect(function()
         end
     end
     
-    -- Модификация значение параметров перезарядки в оружии
     for _, tool in ipairs({char:FindFirstChildOfClass("Tool"), LocalPlayer.Backpack:FindFirstChildOfClass("Tool")}) do
         if tool then
             for _, v in ipairs(tool:GetDescendants()) do
@@ -348,7 +446,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Smooth Fly
+-- Smooth Fly Engine
 RunService.RenderStepped:Connect(function()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then return end
@@ -377,7 +475,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Rapid Fire (Срабатывает при зажатой ЛКМ)
+-- Rapid Fire
 local lastShot = 0
 RunService.Heartbeat:Connect(function()
     if not settings.RapidFire then return end

@@ -1,4 +1,4 @@
--- 555.WAVE // FIXED UI & SMART MULTI-LOCK FOR DAN FFA
+-- 555.WAVE // SMART MULTI-LOCK & STOMP-FIX FOR DAN FFA
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -55,14 +55,14 @@ pcall(function()
     end
 end)
 
--- UI Container (Safe PlayerGui Root)
+-- UI Container
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Burgerwave555"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Main Frame (Burgerwave Style: Dark Burgundy & Gold/Neon Accent)
+-- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 560, 0, 590)
 MainFrame.Position = UDim2.new(0.5, -280, 0.5, -295)
@@ -70,7 +70,7 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(15, 12, 16)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
-MainFrame.Visible = true -- Принудительно видимый при запуске
+MainFrame.Visible = true
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
@@ -104,7 +104,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -20, 1, 0)
 Title.Position = UDim2.new(0, 16, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "555.WAVE // SMART MULTI-LOCK [Fly: F | Stop: X | Spin: V | Menu: Shift]"
+Title.Text = "555.WAVE // SMART STOMP-FIX [Fly: F | Stop: X | Spin: V | Menu: Shift]"
 Title.TextColor3 = Color3.fromRGB(255, 140, 70)
 Title.TextSize = 10
 Title.Font = Enum.Font.GothamBold
@@ -269,7 +269,7 @@ end)
 makeSlider("Spin Speed", 5, 100, 35, function(v) settings.SpinSpeed = v end)
 makeSlider("Fly Speed", 10, 200, 50, function(v) settings.FlySpeed = v end)
 
--- Right Panel (Player List with Display Names ONLY)
+-- Right Panel (Player List)
 local PlayerListFrame = Instance.new("ScrollingFrame")
 PlayerListFrame.Size = UDim2.new(0, 275, 1, -64)
 PlayerListFrame.Position = UDim2.new(0, 265, 0, 56)
@@ -388,11 +388,12 @@ RunService.RenderStepped:Connect(function()
         if p ~= LocalPlayer and p.Character then
             local char = p.Character
             local hum = char:FindFirstChild("Humanoid")
+            local isDowned = char:FindFirstChild("KO") or char:FindFirstChild("Downed")
             
-            -- Big Heads (Hitbox Expander)
+            -- Big Heads
             local head = char:FindFirstChild("Head")
             if head then
-                if settings.BigHeads and settings.SelectedTargets[p.Name] and hum and hum.Health > 0 then
+                if settings.BigHeads and settings.SelectedTargets[p.Name] and hum and hum.Health > 0 and not isDowned then
                     head.Size = Vector3.new(3.5, 3.5, 3.5)
                     head.CanCollide = false
                 else
@@ -402,7 +403,7 @@ RunService.RenderStepped:Connect(function()
 
             -- Rainbow Chams
             local highlight = char:FindFirstChild("WaveChams")
-            if settings.Chams ~= false and settings.SelectedTargets[p.Name] and hum and hum.Health > 0 then
+            if settings.Chams ~= false and settings.SelectedTargets[p.Name] and hum and hum.Health > 0 and not isDowned then
                 if not highlight then
                     highlight = Instance.new("Highlight")
                     highlight.Name = "WaveChams"
@@ -467,7 +468,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Smart Multi-Target Snaplock (Ignores corpses, picks closest live target from selection)
+-- Smart Snaplock (Strictly releases on Downed / Knocked state for easy stomps)
 RunService.RenderStepped:Connect(function()
     Camera.FieldOfView = settings.FOVValue
 
@@ -483,7 +484,10 @@ RunService.RenderStepped:Connect(function()
                 if char then
                     local hum = char:FindFirstChild("Humanoid")
                     local head = char:FindFirstChild("Head")
-                    if hum and head and hum.Health > 0 then
+                    local isKO = char:FindFirstChild("KO") or char:FindFirstChild("Downed") or (hum and hum.PlatformStand)
+                    
+                    -- Проверяем: жив, хп > 0, не в нокауте (не валяется)
+                    if hum and head and hum.Health > 1 and not isKO then
                         if localRoot then
                             local dist = (localRoot.Position - head.Position).Magnitude
                             if dist < shortestDistance then
